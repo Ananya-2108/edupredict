@@ -7,6 +7,7 @@ import os
 import copy
 import io
 import csv
+from datetime import datetime
 from functools import wraps
 import joblib
 import numpy as np
@@ -21,13 +22,17 @@ from database.data_store import (
     USERS_DATA, STUDENTS_DATA, RECOMMENDATIONS_DATA, INTERVENTIONS_DATA,
     NOTIFICATIONS_DATA, ASSIGNMENTS_DATA, STUDENT_GOALS_DATA, AUDIT_LOGS_DATA,
     PREDICTIONS_HISTORY, STUDY_PLANS_DATA, FEATURE_IMPORTANCES,
+    SUBJECTS_DATA, ACADEMIC_RECORDS_DATA,
     authenticate_user, get_user_by_id, get_user_by_username, register_user, log_audit,
     get_all_students, get_students_for_faculty, get_student_by_id, get_student_by_user_id,
     get_student_notifications, get_student_recommendations, get_student_assignments,
     get_student_goals, get_student_interventions, get_student_study_plan,
     toggle_study_plan_task, toggle_recommendation_status, import_students_from_csv,
     compute_explainable_factors, record_prediction_history,
-    add_student, update_student, delete_student, clear_all_data, compute_ml_performance
+    add_student, update_student, delete_student, clear_all_data, compute_ml_performance,
+    get_all_subjects, get_subject_by_code, add_subject, update_subject, delete_subject,
+    update_syllabus_unit, get_academic_records, update_academic_record_marks,
+    calculate_grade_and_points, calculate_student_semester_summary, get_students_needing_academic_support
 )
 
 app = Flask(__name__)
@@ -832,32 +837,587 @@ def api_update_attendance():
     return redirect(url_for('attendance_management'))
 
 # -------------------------------------------------------------------
-# 9. Academic Records & Marks
+# 9. Academic Management System (AMS)
 # -------------------------------------------------------------------
 @app.route('/academic-records')
 @login_required
 def academic_records():
     user = session['user']
     role = user.get('role')
-    subjects = ["Machine Learning", "Cloud Computing", "Compiler Design", "Network Security", "Big Data Analytics"]
+    active_tab = request.args.get('tab', 'overview')
+    semesters_list = list(range(1, 9))
+    academic_years = ["2026-2027", "2025-2026", "2024-2025"]
+    
+    selected_semester_arg = request.args.get('semester')
+    selected_semester = int(selected_semester_arg) if selected_semester_arg and selected_semester_arg.isdigit() else None
     
     if role == 'student':
-        # Student sees ONLY their own records and assignments
+        # Student sees ONLY their own records and enrolled subjects (IDOR Protection)
         student_id = user.get('student_id')
-        s = get_student_by_id(student_id)
-        students = [s] if s else []
-        assignments = get_student_assignments(student_id)
+        student = get_student_by_id(student_id)
+        if not selected_semester:
+            selected_semester = student.get('semester', 7) if student else 7
+            
+        students = [student] if student else []
+        subjects = get_all_subjects(department=student.get('department') if student else None, semester=selected_semester)
+        records = get_academic_records(student_id=student_id, semester=selected_semester)
+        semester_summary = calculate_student_semester_summary(student_id, selected_semester)
+        students_support = []
+        selected_subject_code = request.args.get('subject_code')
     else:
         dept = user.get('department') if role == 'faculty' else None
         students = get_students_for_faculty(dept)
-        assignments = ASSIGNMENTS_DATA
+        selected_student_id = request.args.get('student_id')
+        selected_subject_code = request.args.get('subject_code')
         
+        subjects = get_all_subjects(department=dept, semester=selected_semester)
+        records = get_academic_records(
+            student_id=selected_student_id,
+            subject_code=selected_subject_code,
+            department=dept,
+            semester=selected_semester
+        )
+        if selected_student_id:
+            semester_summary = calculate_student_semester_summary(selected_student_id, selected_semester or 7)
+        else:
+            semester_summary = None
+        students_support = get_students_needing_academic_support(department=dept, semester=selected_semester)
+
     return render_template(
         'academic_records.html',
         students=students,
         subjects=subjects,
-        assignments=assignments,
+        records=records,
+        semester_summary=semester_summary,
+        students_support=students_support,
+        semesters_list=semesters_list,
+        selected_semester=selected_semester,
+        selected_subject_code=selected_subject_code if 'selected_subject_code' in locals() else None,
+        academic_years=academic_years,
+        active_tab=active_tab,
         active_page='academic_records'
+    )
+
+
+@app.route('/api/subjects/add', methods=['POST'])
+@role_required('faculty', 'admin')
+def api_add_subject():
+    user = session['user']
+    role = user.get('role')
+    
+    if request.is_json:
+        data = request.get_json() or {}
+    else:
+        data = request.form.to_dict()
+        
+    # Faculty can only add subjects for their authorized department
+    if role == 'faculty':
+        data['department'] = user.get('department')
+        if not data.get('faculty_name'):
+            data['faculty_name'] = user.get('name', 'Faculty')
+        data['faculty_id'] = user.get('user_id', '')
+
+    subject, error = add_subject(data)
+    if error:
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'message': error}), 400
+        flash(f"Subject creation error: {error}", "danger")
+        return redirect(url_for('academic_records', tab='subjects', semester=data.get('semester')))
+
+    log_audit(user.get('user_id'), user.get('username'), user.get('role'), "CREATE_SUBJECT", f"/api/subjects/{subject['subject_code']}", "SUCCESS", f"Added subject {subject['subject_code']} - {subject['subject_name']}")
+    
+    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True, 'subject': subject, 'message': f"Subject {subject['subject_code']} successfully registered."})
+    
+    flash(f"Subject {subject['subject_code']} ({subject['subject_name']}) successfully created and allocated.", "success")
+    return redirect(url_for('academic_records', tab='subjects', semester=subject.get('semester')))
+
+
+@app.route('/api/subjects/<subject_code>/update', methods=['POST'])
+@role_required('faculty', 'admin')
+def api_update_subject(subject_code):
+    user = session['user']
+    role = user.get('role')
+    existing = get_subject_by_code(subject_code)
+    if not existing:
+        return jsonify({'success': False, 'message': 'Subject not found'}), 404
+        
+    if role == 'faculty' and existing.get('department') != user.get('department'):
+        return jsonify({'success': False, 'message': 'Unauthorized to modify subjects outside your department'}), 403
+
+    if request.is_json:
+        data = request.get_json() or {}
+    else:
+        data = request.form.to_dict()
+
+    updated = update_subject(subject_code, data)
+    log_audit(user.get('user_id'), user.get('username'), user.get('role'), "UPDATE_SUBJECT", f"/api/subjects/{subject_code}", "SUCCESS", f"Updated subject {subject_code}")
+
+    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True, 'subject': updated, 'message': f"Subject {subject_code} updated successfully."})
+
+    flash(f"Subject {subject_code} successfully updated.", "success")
+    return redirect(url_for('academic_records', tab='subjects', semester=updated.get('semester')))
+
+
+@app.route('/api/subjects/<subject_code>/delete', methods=['POST'])
+@role_required('faculty', 'admin')
+def api_delete_subject(subject_code):
+    user = session['user']
+    role = user.get('role')
+    existing = get_subject_by_code(subject_code)
+    if not existing:
+        return jsonify({'success': False, 'message': 'Subject not found'}), 404
+
+    if role == 'faculty' and existing.get('department') != user.get('department'):
+        return jsonify({'success': False, 'message': 'Unauthorized to delete subjects outside your department'}), 403
+
+    sem = existing.get('semester')
+    delete_subject(subject_code)
+    log_audit(user.get('user_id'), user.get('username'), user.get('role'), "DELETE_SUBJECT", f"/api/subjects/{subject_code}", "SUCCESS", f"Deleted subject {subject_code}")
+
+    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True, 'message': f"Subject {subject_code} successfully deleted."})
+
+    flash(f"Subject {subject_code} has been removed from academic allocation.", "success")
+    return redirect(url_for('academic_records', tab='subjects', semester=sem))
+
+
+@app.route('/api/subjects/<subject_code>/syllabus', methods=['POST'])
+@role_required('faculty', 'admin')
+def api_update_syllabus(subject_code):
+    user = session['user']
+    role = user.get('role')
+    existing = get_subject_by_code(subject_code)
+    if not existing:
+        return jsonify({'success': False, 'message': 'Subject not found'}), 404
+
+    if role == 'faculty' and existing.get('department') != user.get('department'):
+        return jsonify({'success': False, 'message': 'Unauthorized to update syllabus for this department'}), 403
+
+    data = request.get_json() if request.is_json else request.form.to_dict()
+    unit_number = int(data.get('unit_number', 1))
+    completed = data.get('completed') in [True, 'true', '1', 1, 'on']
+
+    updated_sub = update_syllabus_unit(subject_code, unit_number, completed)
+    if not updated_sub:
+        return jsonify({'success': False, 'message': 'Unit not found'}), 404
+
+    log_audit(user.get('user_id'), user.get('username'), user.get('role'), "UPDATE_SYLLABUS", f"/api/subjects/{subject_code}/syllabus", "SUCCESS", f"Updated syllabus unit {unit_number} for {subject_code}")
+    return jsonify({
+        'success': True,
+        'syllabus_progress': updated_sub.get('syllabus_progress', 0.0),
+        'topics': updated_sub.get('syllabus_topics', []),
+        'message': f"Syllabus unit {unit_number} updated."
+    })
+
+
+@app.route('/api/academic-records/marks/update', methods=['POST'])
+@role_required('faculty', 'admin')
+def api_update_academic_record_marks():
+    user = session['user']
+    role = user.get('role')
+    
+    if request.is_json:
+        data = request.get_json() or {}
+    else:
+        data = request.form.to_dict()
+
+    record_id = data.get('record_id')
+    student_id = data.get('student_id')
+    subject_code = data.get('subject_code')
+
+    # Security check: faculty can only update records for students in their department
+    if role == 'faculty':
+        stu = get_student_by_id(student_id)
+        if stu and stu.get('department') != user.get('department'):
+            return jsonify({'success': False, 'message': 'Forbidden: cannot alter marks outside authorized department'}), 403
+
+    updated_rec = update_academic_record_marks(
+        record_id=record_id,
+        student_id=student_id,
+        subject_code=subject_code,
+        internal_1=data.get('internal_1'),
+        internal_2=data.get('internal_2'),
+        assignment_score=data.get('assignment_score'),
+        lab_score=data.get('lab_score'),
+        semester_exam_score=data.get('semester_exam_score'),
+        classes_attended=data.get('classes_attended'),
+        classes_conducted=data.get('classes_conducted')
+    )
+
+    if not updated_rec:
+        return jsonify({'success': False, 'message': 'Academic record not found'}), 404
+
+    summary = calculate_student_semester_summary(updated_rec['student_id'], updated_rec.get('semester', 7))
+    log_audit(user.get('user_id'), user.get('username'), user.get('role'), "UPDATE_MARKS", f"/api/academic-records/marks/{updated_rec['student_id']}", "SUCCESS", f"Updated marks for {updated_rec['student_id']} in {updated_rec['subject_code']}")
+
+    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'success': True,
+            'record': updated_rec,
+            'summary': summary,
+            'message': f"Marks updated successfully for {updated_rec['student_name']} ({updated_rec['subject_code']})."
+        })
+
+    flash(f"Academic marks and attendance updated for {updated_rec['student_name']}.", "success")
+    return redirect(url_for('academic_records', tab='gradebook', semester=updated_rec.get('semester')))
+
+
+@app.route('/api/academic-records/export-csv')
+@login_required
+def api_export_academic_records_csv():
+    user = session['user']
+    role = user.get('role')
+    
+    selected_sem_arg = request.args.get('semester')
+    selected_sem = int(selected_sem_arg) if selected_sem_arg and selected_sem_arg.isdigit() else None
+    
+    if role == 'student':
+        student_id = user.get('student_id')
+        records = get_academic_records(student_id=student_id, semester=selected_sem)
+        filename = f"academic_transcript_{student_id}_sem{selected_sem or 'all'}.csv"
+    else:
+        dept = user.get('department') if role == 'faculty' else None
+        target_student = request.args.get('student_id')
+        target_subject = request.args.get('subject_code')
+        records = get_academic_records(
+            student_id=target_student,
+            subject_code=target_subject,
+            department=dept,
+            semester=selected_sem
+        )
+        filename = f"academic_gradebook_{dept or 'all'}_sem{selected_sem or 'all'}.csv"
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        'Record ID', 'Student ID', 'Student Name', 'Department', 'Semester',
+        'Subject Code', 'Subject Name', 'Credits',
+        'Internal 1 (25)', 'Internal 2 (25)', 'Assignment (10)', 'Lab (15)',
+        'Semester Exam (100)', 'Total Marks (100)', 'Grade', 'Grade Points',
+        'Credits Earned', 'Classes Attended', 'Classes Conducted',
+        'Attendance %', 'Attendance Status'
+    ])
+
+    for r in records:
+        writer.writerow([
+            r.get('id', ''),
+            r.get('student_id', ''),
+            r.get('student_name', ''),
+            r.get('department', ''),
+            r.get('semester', ''),
+            r.get('subject_code', ''),
+            r.get('subject_name', ''),
+            r.get('credits', 0),
+            r.get('internal_1', 0),
+            r.get('internal_2', 0),
+            r.get('assignment_score', 0),
+            r.get('lab_score', 0),
+            r.get('semester_exam_score', 0),
+            r.get('total_marks', 0),
+            r.get('grade', 'F'),
+            r.get('grade_points', 0.0),
+            r.get('credits_earned', 0),
+            r.get('classes_attended', 0),
+            r.get('classes_conducted', 0),
+            f"{r.get('attendance_percentage', 0.0)}%",
+            r.get('attendance_status', '')
+        ])
+
+    log_audit(user.get('user_id'), user.get('username'), user.get('role'), "EXPORT_ACADEMIC_CSV", "/api/academic-records/export-csv", "SUCCESS", f"Exported {len(records)} records to CSV")
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={"Content-disposition": f"attachment; filename={filename}"}
+    )
+
+
+@app.route('/api/academic-records/export-pdf')
+@login_required
+def api_export_academic_records_pdf():
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether, HRFlowable
+
+    user = session['user']
+    role = user.get('role')
+    
+    selected_sem_arg = request.args.get('semester')
+    selected_sem = int(selected_sem_arg) if selected_sem_arg and selected_sem_arg.isdigit() else None
+    
+    if role == 'student':
+        student_id = user.get('student_id')
+        student = get_student_by_id(student_id)
+        if not selected_sem:
+            selected_sem = student.get('semester', 7) if student else 7
+        records = get_academic_records(student_id=student_id, semester=selected_sem)
+        summary = calculate_student_semester_summary(student_id, selected_sem)
+        is_single_student = True
+        filename = f"Official_Transcript_{student_id}_Sem{selected_sem}.pdf"
+    else:
+        dept = user.get('department') if role == 'faculty' else None
+        target_student_id = request.args.get('student_id')
+        target_subject = request.args.get('subject_code')
+        if target_student_id:
+            student = get_student_by_id(target_student_id)
+            records = get_academic_records(student_id=target_student_id, semester=selected_sem)
+            summary = calculate_student_semester_summary(target_student_id, selected_sem or 7)
+            is_single_student = True
+            filename = f"Official_Transcript_{target_student_id}_Sem{selected_sem or 'all'}.pdf"
+        else:
+            student = None
+            records = get_academic_records(subject_code=target_subject, department=dept, semester=selected_sem)
+            summary = None
+            is_single_student = False
+            filename = f"Academic_Gradebook_Report_{dept or 'All'}_Sem{selected_sem or 'all'}.pdf"
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=letter,
+        leftMargin=36,
+        rightMargin=36,
+        topMargin=36,
+        bottomMargin=36
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'DocTitle',
+        parent=styles['Heading1'],
+        fontName='Helvetica-Bold',
+        fontSize=15,
+        leading=18,
+        textColor=colors.HexColor('#172554'),
+        alignment=1,
+        spaceAfter=4
+    )
+    subtitle_style = ParagraphStyle(
+        'DocSubtitle',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=9,
+        leading=12,
+        textColor=colors.HexColor('#475569'),
+        alignment=1,
+        spaceAfter=12
+    )
+    th_style = ParagraphStyle(
+        'TableHeader',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=7.5,
+        leading=9,
+        textColor=colors.white,
+        alignment=1
+    )
+    tb_style = ParagraphStyle(
+        'TableBody',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=7,
+        leading=9,
+        textColor=colors.HexColor('#1E293B')
+    )
+    tb_center = ParagraphStyle(
+        'TableBodyCenter',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=7,
+        leading=9,
+        alignment=1,
+        textColor=colors.HexColor('#1E293B')
+    )
+    bold_center = ParagraphStyle(
+        'TableBodyBoldCenter',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=7,
+        leading=9,
+        alignment=1,
+        textColor=colors.HexColor('#172554')
+    )
+
+    story = []
+    
+    # Institution Header
+    story.append(Paragraph("EDUPREDICT ACADEMIC MANAGEMENT SYSTEM", title_style))
+    sub_text = "AUTONOMOUS COLLEGE OF ENGINEERING & TECHNOLOGY • OFFICE OF THE CONTROLLER OF EXAMINATIONS"
+    if is_single_student and student:
+        sub_text += f"<br/><b>OFFICIAL SEMESTER GRADE SHEET & TRANSCRIPT — SEMESTER {selected_sem or student.get('semester', 7)}</b>"
+    else:
+        sub_text += f"<br/><b>ACADEMIC PERFORMANCE & CONTINUOUS ASSESSMENT AUDIT REPORT</b>"
+    story.append(Paragraph(sub_text, subtitle_style))
+    story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#2563EB"), spaceAfter=10))
+
+    if is_single_student and student:
+        info_data = [
+            [
+                Paragraph(f"<b>Student Name:</b> {student.get('name')}", tb_style),
+                Paragraph(f"<b>Student ID (Roll No):</b> {student.get('id')}", tb_style),
+                Paragraph(f"<b>Department:</b> {student.get('department')}", tb_style)
+            ],
+            [
+                Paragraph(f"<b>Program:</b> Bachelor of Engineering (B.E.)", tb_style),
+                Paragraph(f"<b>Semester:</b> {selected_sem or student.get('semester', 7)}", tb_style),
+                Paragraph(f"<b>Academic Year:</b> {student.get('academic_year', '2026-2027')}", tb_style)
+            ]
+        ]
+        info_table = Table(info_data, colWidths=[180, 180, 180])
+        info_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F1F5F9')),
+            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ('LEFTPADDING', (0,0), (-1,-1), 8),
+            ('RIGHTPADDING', (0,0), (-1,-1), 8),
+        ]))
+        story.append(info_table)
+        story.append(Spacer(1, 10))
+
+        if summary:
+            sgpa_val = summary.get('sgpa', 0.0)
+            sgpa_color = '#16A34A' if sgpa_val >= 7.5 else ('#F59E0B' if sgpa_val >= 6.0 else '#DC2626')
+            sum_data = [
+                [
+                    Paragraph(f"<b>Registered Credits</b><br/><font size=10 color='#172554'><b>{summary.get('total_registered_credits', 0)}</b></font>", tb_center),
+                    Paragraph(f"<b>Earned Credits</b><br/><font size=10 color='#16A34A'><b>{summary.get('total_earned_credits', 0)}</b></font>", tb_center),
+                    Paragraph(f"<b>Semester GPA (SGPA)</b><br/><font size=10 color='{sgpa_color}'><b>{sgpa_val:.2f} / 10.0</b></font>", tb_center),
+                    Paragraph(f"<b>Average Attendance</b><br/><font size=10 color='#172554'><b>{summary.get('average_attendance', 0.0)}%</b></font>", tb_center),
+                    Paragraph(f"<b>Academic Standing</b><br/><font size=9 color='{sgpa_color}'><b>{summary.get('standing', 'Regular')}</b></font>", tb_center)
+                ]
+            ]
+            sum_table = Table(sum_data, colWidths=[108, 108, 108, 108, 108])
+            sum_table.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#EFF6FF')),
+                ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#93C5FD')),
+                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                ('TOPPADDING', (0,0), (-1,-1), 6),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+            ]))
+            story.append(sum_table)
+            story.append(Spacer(1, 12))
+
+    if is_single_student:
+        table_headers = [
+            Paragraph("Code", th_style),
+            Paragraph("Course Name", th_style),
+            Paragraph("Credits", th_style),
+            Paragraph("Int 1<br/>(25)", th_style),
+            Paragraph("Int 2<br/>(25)", th_style),
+            Paragraph("Assign<br/>(10)", th_style),
+            Paragraph("Lab<br/>(15)", th_style),
+            Paragraph("Exam<br/>(100)", th_style),
+            Paragraph("Total<br/>(100)", th_style),
+            Paragraph("Grade", th_style),
+            Paragraph("Points", th_style),
+            Paragraph("Att %", th_style),
+            Paragraph("Status", th_style)
+        ]
+        col_widths = [45, 125, 30, 30, 30, 30, 30, 35, 35, 30, 30, 35, 55]
+    else:
+        table_headers = [
+            Paragraph("Roll No", th_style),
+            Paragraph("Student Name", th_style),
+            Paragraph("Subject Code", th_style),
+            Paragraph("Sem", th_style),
+            Paragraph("Cr", th_style),
+            Paragraph("Int 1", th_style),
+            Paragraph("Int 2", th_style),
+            Paragraph("Lab", th_style),
+            Paragraph("Exam", th_style),
+            Paragraph("Total", th_style),
+            Paragraph("Grade", th_style),
+            Paragraph("GP", th_style),
+            Paragraph("Att %", th_style)
+        ]
+        col_widths = [45, 100, 50, 25, 20, 30, 30, 30, 35, 35, 30, 30, 40]
+
+    rows = [table_headers]
+    for r in records:
+        if is_single_student:
+            grade_color = '#DC2626' if r.get('grade') == 'F' else ('#16A34A' if r.get('grade') in ['O', 'A+'] else '#1E293B')
+            att_color = '#DC2626' if r.get('attendance_percentage', 0) < 65 else ('#F59E0B' if r.get('attendance_percentage', 0) < 75 else '#16A34A')
+            rows.append([
+                Paragraph(r.get('subject_code', ''), bold_center),
+                Paragraph(r.get('subject_name', ''), tb_style),
+                Paragraph(str(r.get('credits', 0)), tb_center),
+                Paragraph(str(r.get('internal_1', 0)), tb_center),
+                Paragraph(str(r.get('internal_2', 0)), tb_center),
+                Paragraph(str(r.get('assignment_score', 0)), tb_center),
+                Paragraph(str(r.get('lab_score', 0)), tb_center),
+                Paragraph(str(r.get('semester_exam_score', 0)), tb_center),
+                Paragraph(f"<b>{r.get('total_marks', 0)}</b>", bold_center),
+                Paragraph(f"<font color='{grade_color}'><b>{r.get('grade', 'F')}</b></font>", bold_center),
+                Paragraph(f"{r.get('grade_points', 0.0):.1f}", tb_center),
+                Paragraph(f"<font color='{att_color}'><b>{r.get('attendance_percentage', 0.0)}%</b></font>", tb_center),
+                Paragraph(r.get('attendance_status', ''), tb_style)
+            ])
+        else:
+            rows.append([
+                Paragraph(r.get('student_id', ''), bold_center),
+                Paragraph(r.get('student_name', ''), tb_style),
+                Paragraph(r.get('subject_code', ''), bold_center),
+                Paragraph(str(r.get('semester', '')), tb_center),
+                Paragraph(str(r.get('credits', 0)), tb_center),
+                Paragraph(str(r.get('internal_1', 0)), tb_center),
+                Paragraph(str(r.get('internal_2', 0)), tb_center),
+                Paragraph(str(r.get('lab_score', 0)), tb_center),
+                Paragraph(str(r.get('semester_exam_score', 0)), tb_center),
+                Paragraph(f"<b>{r.get('total_marks', 0)}</b>", bold_center),
+                Paragraph(f"<b>{r.get('grade', 'F')}</b>", bold_center),
+                Paragraph(f"{r.get('grade_points', 0.0):.1f}", tb_center),
+                Paragraph(f"{r.get('attendance_percentage', 0.0)}%", tb_center)
+            ])
+
+    t = Table(rows, colWidths=col_widths, repeatRows=1)
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#172554')),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#F8FAFC')])
+    ]))
+    story.append(t)
+    story.append(Spacer(1, 14))
+
+    scale_text = (
+        "<b>Grading System (10-Point Scale):</b> O: Outstanding (90-100%, GP: 10.0) | "
+        "A+: Excellent (80-89%, GP: 9.0) | A: Very Good (70-79%, GP: 8.0) | "
+        "B+: Good (60-69%, GP: 7.0) | B: Above Average (50-59%, GP: 6.0) | "
+        "C: Pass (40-49%, GP: 5.0) | F: Fail / Backlog (<40%, GP: 0.0, Zero Credits Earned).<br/>"
+        "<b>Attendance Regulation:</b> Minimum 75% attendance mandatory for semester examination eligibility."
+    )
+    scale_p = Paragraph(scale_text, ParagraphStyle('Scale', parent=styles['Normal'], fontSize=6.5, leading=9, textColor=colors.HexColor('#64748B')))
+    story.append(scale_p)
+    story.append(Spacer(1, 20))
+
+    sig_data = [
+        [
+            Paragraph("Prepared By:<br/><br/><b>System Automated Registrar</b>", tb_style),
+            Paragraph("Verified By:<br/><br/><b>Head of Department</b>", tb_center),
+            Paragraph("Approved By:<br/><br/><b>Controller of Examinations</b>", tb_center)
+        ]
+    ]
+    sig_table = Table(sig_data, colWidths=[180, 180, 180])
+    sig_table.setStyle(TableStyle([
+        ('TOPPADDING', (0,0), (-1,-1), 10),
+        ('LINEABOVE', (0,0), (-1,0), 0.5, colors.HexColor('#CBD5E1')),
+    ]))
+    story.append(KeepTogether(sig_table))
+
+    doc.build(story)
+    buffer.seek(0)
+    log_audit(user.get('user_id'), user.get('username'), user.get('role'), "EXPORT_ACADEMIC_PDF", "/api/academic-records/export-pdf", "SUCCESS", f"Generated official PDF grade report ({filename})")
+    return Response(
+        buffer.getvalue(),
+        mimetype='application/pdf',
+        headers={"Content-disposition": f"attachment; filename={filename}"}
     )
 
 # -------------------------------------------------------------------

@@ -161,5 +161,117 @@ class TestEduPredictSecurityRBAC(unittest.TestCase):
             self.assertEqual(res.status_code, 302, f"Failed on {url}")
             self.assertIn('/login', res.headers['Location'])
 
+    # ---------------------------------------------------------------
+    # Scenario 9: Student cannot add, edit or delete academic subjects
+    # ---------------------------------------------------------------
+    def test_09_student_cannot_add_or_alter_subjects(self):
+        self.login("STU1001", "password123")
+        
+        # Student tries to add a subject -> 403
+        add_res = self.client.post('/api/subjects/add', data={
+            'subject_code': 'HACK999',
+            'subject_name': 'Hacking 101',
+            'department': 'Computer Science',
+            'semester': 7,
+            'credits': 4
+        })
+        self.assertEqual(add_res.status_code, 403)
+
+        # Student tries to edit a subject -> 403
+        edit_res = self.client.post('/api/subjects/CS701/update', data={
+            'subject_name': 'Modified'
+        })
+        self.assertEqual(edit_res.status_code, 403)
+
+        # Student tries to delete a subject -> 403
+        del_res = self.client.post('/api/subjects/CS701/delete')
+        self.assertEqual(del_res.status_code, 403)
+
+    # ---------------------------------------------------------------
+    # Scenario 10: Student cannot alter assessment marks
+    # ---------------------------------------------------------------
+    def test_10_student_cannot_update_marks(self):
+        self.login("STU1001", "password123")
+
+        # Student tries to update their own or another's marks -> 403
+        mark_res = self.client.post('/api/academic-records/marks/update', json={
+            'student_id': 'STU1001',
+            'subject_code': 'CS701',
+            'internal_1': 25,
+            'internal_2': 25,
+            'semester_exam_score': 100
+        })
+        self.assertEqual(mark_res.status_code, 403)
+
+    # ---------------------------------------------------------------
+    # Scenario 11: Student academic records IDOR isolation
+    # ---------------------------------------------------------------
+    def test_11_student_academic_records_idor_isolation(self):
+        self.login("STU1001", "password123")
+
+        # STU1001 attempts to view STU1002's records via query params
+        res = self.client.get('/academic-records?student_id=STU1002&semester=7')
+        self.assertEqual(res.status_code, 200)
+        content = res.get_data(as_text=True)
+
+        # Must only render STU1001's courses, not STU1002's
+        self.assertIn("CS701", content)
+        # STU1002 has F in CS703 with 38 marks
+        self.assertNotIn("Priya Nair (STU1002)", content)
+
+    # ---------------------------------------------------------------
+    # Scenario 12: Faculty AMS subject & marks management
+    # ---------------------------------------------------------------
+    def test_12_faculty_ams_subject_and_mark_management(self):
+        # faculty_ananya is CSE faculty
+        self.login("faculty_ananya", "password123")
+
+        # 1. Update marks for CSE student STU1001 in CS701
+        res = self.client.post('/api/academic-records/marks/update', json={
+            'student_id': 'STU1001',
+            'subject_code': 'CS701',
+            'internal_1': 24,
+            'internal_2': 24,
+            'assignment_score': 10,
+            'lab_score': 15,
+            'semester_exam_score': 95,
+            'classes_attended': 45,
+            'classes_conducted': 45
+        })
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['record']['grade'], 'A')
+        self.assertEqual(data['record']['grade_points'], 8.0)
+
+        # 2. Toggle syllabus unit
+        syl_res = self.client.post('/api/subjects/CS701/syllabus', json={
+            'unit_number': 1,
+            'completed': True
+        })
+        self.assertEqual(syl_res.status_code, 200)
+
+        # 3. Faculty cannot alter subjects in ECE department
+        ece_edit = self.client.post('/api/subjects/EC701/update', json={'subject_name': 'Hacked ECE'})
+        self.assertEqual(ece_edit.status_code, 403)
+
+    # ---------------------------------------------------------------
+    # Scenario 13: Export CSV and PDF reports
+    # ---------------------------------------------------------------
+    def test_13_academic_reports_export_csv_and_pdf(self):
+        self.login("STU1001", "password123")
+
+        # CSV Export
+        csv_res = self.client.get('/api/academic-records/export-csv?semester=7')
+        self.assertEqual(csv_res.status_code, 200)
+        self.assertEqual(csv_res.mimetype, 'text/csv')
+        self.assertIn('attachment;', csv_res.headers['Content-Disposition'])
+
+        # PDF Export
+        pdf_res = self.client.get('/api/academic-records/export-pdf?semester=7')
+        self.assertEqual(pdf_res.status_code, 200)
+        self.assertEqual(pdf_res.mimetype, 'application/pdf')
+        self.assertTrue(pdf_res.data.startswith(b'%PDF'))
+
 if __name__ == '__main__':
     unittest.main()

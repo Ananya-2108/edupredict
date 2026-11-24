@@ -134,3 +134,56 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
 );
+
+-- 11. Subjects Management
+CREATE TABLE IF NOT EXISTS subjects (
+    subject_id INT AUTO_INCREMENT PRIMARY KEY,
+    subject_code VARCHAR(20) NOT NULL,
+    subject_name VARCHAR(150) NOT NULL,
+    department VARCHAR(100) NOT NULL,
+    semester INT NOT NULL,
+    credits INT NOT NULL DEFAULT 4,
+    academic_year VARCHAR(20) DEFAULT '2026-2027',
+    batch VARCHAR(20) DEFAULT '2023-2027',
+    section VARCHAR(10) DEFAULT 'A',
+    faculty_id VARCHAR(100),
+    faculty_name VARCHAR(120),
+    syllabus_progress INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_subject_alloc (subject_code, department, semester, section)
+);
+
+-- 12. Subject-wise Student Examination & Continuous Assessment Records
+CREATE TABLE IF NOT EXISTS subject_academic_records (
+    record_id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id VARCHAR(20) NOT NULL,
+    subject_code VARCHAR(20) NOT NULL,
+    semester INT NOT NULL,
+    academic_year VARCHAR(20) DEFAULT '2026-2027',
+    internal_1 DECIMAL(5,2) DEFAULT 0.0,
+    internal_2 DECIMAL(5,2) DEFAULT 0.0,
+    assignment_marks DECIMAL(5,2) DEFAULT 0.0,
+    lab_marks DECIMAL(5,2) DEFAULT 0.0,
+    exam_marks DECIMAL(5,2) DEFAULT 0.0,
+    total_marks DECIMAL(5,2) DEFAULT 0.0,
+    grade VARCHAR(5) DEFAULT 'F',
+    grade_points DECIMAL(4,2) DEFAULT 0.0,
+    credits_earned INT DEFAULT 0,
+    classes_conducted INT DEFAULT 45,
+    classes_attended INT DEFAULT 0,
+    attendance_pct DECIMAL(5,2) DEFAULT 0.0,
+    attendance_status ENUM('Good Standing', 'Borderline Warning', 'Critical Shortage') DEFAULT 'Critical Shortage',
+    academic_risk ENUM('Low', 'Medium', 'High') DEFAULT 'High',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE
+);
+
+-- 13. Subject Syllabus Units
+CREATE TABLE IF NOT EXISTS syllabus_units (
+    unit_id INT AUTO_INCREMENT PRIMARY KEY,
+    subject_code VARCHAR(20) NOT NULL,
+    unit_number INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    is_completed BOOLEAN DEFAULT FALSE,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);

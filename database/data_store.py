@@ -746,7 +746,7 @@ def delete_student(student_id, deleter_user=None):
 
 def clear_all_data():
     """Reset the application back to fresh blank state (preserves admin user)."""
-    global STUDENTS_DATA, RECOMMENDATIONS_DATA, INTERVENTIONS_DATA, NOTIFICATIONS_DATA, ASSIGNMENTS_DATA, STUDENT_GOALS_DATA, PREDICTIONS_HISTORY, STUDY_PLANS_DATA
+    global STUDENTS_DATA, RECOMMENDATIONS_DATA, INTERVENTIONS_DATA, NOTIFICATIONS_DATA, ASSIGNMENTS_DATA, STUDENT_GOALS_DATA, PREDICTIONS_HISTORY, STUDY_PLANS_DATA, ACADEMIC_RECORDS_DATA
     STUDENTS_DATA.clear()
     RECOMMENDATIONS_DATA.clear()
     INTERVENTIONS_DATA.clear()
@@ -755,6 +755,7 @@ def clear_all_data():
     STUDENT_GOALS_DATA.clear()
     PREDICTIONS_HISTORY.clear()
     STUDY_PLANS_DATA.clear()
+    ACADEMIC_RECORDS_DATA.clear()
 
 # ===================================================================
 # Enterprise SaaS Extensions: Explainable AI, Study Planner, CSV Import
@@ -1061,3 +1062,1039 @@ def import_students_from_csv(csv_content, department="Computer Science & Enginee
     res = BulkImportResult({'imported_count': imported_count, 'errors': errors})
     return res
 
+
+# ===================================================================
+# Comprehensive Academic Management System (AMS)
+# Models, Data Structures, and Business Logic
+# ===================================================================
+
+SUBJECTS_DATA = [
+    # Semester 1
+    {
+        "subject_code": "CS101",
+        "subject_name": "Engineering Mathematics I",
+        "department": "Computer Science & Engineering",
+        "semester": 1,
+        "credits": 4,
+        "academic_year": "2026-2027",
+        "batch": "2026-2030",
+        "section": "A",
+        "faculty_id": "faculty_rajesh",
+        "faculty_name": "Prof. Rajesh Kumar",
+        "syllabus_progress": 100.0,
+        "syllabus_topics": [
+            {"unit_number": 1, "title": "Differential Calculus", "completed": True},
+            {"unit_number": 2, "title": "Linear Algebra & Matrices", "completed": True},
+            {"unit_number": 3, "title": "Vector Calculus", "completed": True},
+            {"unit_number": 4, "title": "Partial Differential Equations", "completed": True},
+            {"unit_number": 5, "title": "Multiple Integrals", "completed": True}
+        ]
+    },
+    {
+        "subject_code": "CS102",
+        "subject_name": "Problem Solving with C",
+        "department": "Computer Science & Engineering",
+        "semester": 1,
+        "credits": 4,
+        "academic_year": "2026-2027",
+        "batch": "2026-2030",
+        "section": "A",
+        "faculty_id": "faculty_ananya",
+        "faculty_name": "Prof. Ananya Sharma",
+        "syllabus_progress": 100.0,
+        "syllabus_topics": [
+            {"unit_number": 1, "title": "Introduction to Programming & C", "completed": True},
+            {"unit_number": 2, "title": "Control Structures & Loops", "completed": True},
+            {"unit_number": 3, "title": "Arrays & Strings", "completed": True},
+            {"unit_number": 4, "title": "Functions & Pointers", "completed": True},
+            {"unit_number": 5, "title": "Structures & File I/O", "completed": True}
+        ]
+    },
+
+    # Semester 2
+    {
+        "subject_code": "CS201",
+        "subject_name": "Engineering Mathematics II",
+        "department": "Computer Science & Engineering",
+        "semester": 2,
+        "credits": 4,
+        "academic_year": "2026-2027",
+        "batch": "2025-2029",
+        "section": "A",
+        "faculty_id": "faculty_rajesh",
+        "faculty_name": "Prof. Rajesh Kumar",
+        "syllabus_progress": 100.0,
+        "syllabus_topics": [
+            {"unit_number": 1, "title": "Laplace Transforms", "completed": True},
+            {"unit_number": 2, "title": "Fourier Series", "completed": True},
+            {"unit_number": 3, "title": "Complex Analysis", "completed": True},
+            {"unit_number": 4, "title": "Numerical Methods", "completed": True},
+            {"unit_number": 5, "title": "Probability Distributions", "completed": True}
+        ]
+    },
+    {
+        "subject_code": "CS202",
+        "subject_name": "Data Structures & Algorithms",
+        "department": "Computer Science & Engineering",
+        "semester": 2,
+        "credits": 4,
+        "academic_year": "2026-2027",
+        "batch": "2025-2029",
+        "section": "A",
+        "faculty_id": "faculty_ananya",
+        "faculty_name": "Prof. Ananya Sharma",
+        "syllabus_progress": 100.0,
+        "syllabus_topics": [
+            {"unit_number": 1, "title": "Stacks & Queues", "completed": True},
+            {"unit_number": 2, "title": "Linked Lists & Variants", "completed": True},
+            {"unit_number": 3, "title": "Trees & Binary Search Trees", "completed": True},
+            {"unit_number": 4, "title": "Graph Algorithms & Traversals", "completed": True},
+            {"unit_number": 5, "title": "Hashing & Sorting Techniques", "completed": True}
+        ]
+    },
+
+    # Semester 3
+    {
+        "subject_code": "CS301",
+        "subject_name": "Object Oriented Programming (Java)",
+        "department": "Computer Science & Engineering",
+        "semester": 3,
+        "credits": 4,
+        "academic_year": "2026-2027",
+        "batch": "2024-2028",
+        "section": "A",
+        "faculty_id": "faculty_ananya",
+        "faculty_name": "Prof. Ananya Sharma",
+        "syllabus_progress": 100.0,
+        "syllabus_topics": [
+            {"unit_number": 1, "title": "Java Fundamentals & Classes", "completed": True},
+            {"unit_number": 2, "title": "Inheritance & Polymorphism", "completed": True},
+            {"unit_number": 3, "title": "Exception Handling & Packages", "completed": True},
+            {"unit_number": 4, "title": "Multithreading & Synchronization", "completed": True},
+            {"unit_number": 5, "title": "Generics & Collections Framework", "completed": True}
+        ]
+    },
+
+    # Semester 4
+    {
+        "subject_code": "CS401",
+        "subject_name": "Design & Analysis of Algorithms",
+        "department": "Computer Science & Engineering",
+        "semester": 4,
+        "credits": 4,
+        "academic_year": "2026-2027",
+        "batch": "2024-2028",
+        "section": "A",
+        "faculty_id": "faculty_rajesh",
+        "faculty_name": "Prof. Rajesh Kumar",
+        "syllabus_progress": 100.0,
+        "syllabus_topics": [
+            {"unit_number": 1, "title": "Asymptotic Analysis & Recurrences", "completed": True},
+            {"unit_number": 2, "title": "Divide & Conquer Paradigm", "completed": True},
+            {"unit_number": 3, "title": "Greedy Method & Spanning Trees", "completed": True},
+            {"unit_number": 4, "title": "Dynamic Programming", "completed": True},
+            {"unit_number": 5, "title": "Backtracking & NP-Completeness", "completed": True}
+        ]
+    },
+
+    # Semester 5
+    {
+        "subject_code": "CS501",
+        "subject_name": "Database Management Systems",
+        "department": "Computer Science & Engineering",
+        "semester": 5,
+        "credits": 4,
+        "academic_year": "2026-2027",
+        "batch": "2023-2027",
+        "section": "A",
+        "faculty_id": "faculty_ananya",
+        "faculty_name": "Prof. Ananya Sharma",
+        "syllabus_progress": 100.0,
+        "syllabus_topics": [
+            {"unit_number": 1, "title": "Relational Model & ER Diagrams", "completed": True},
+            {"unit_number": 2, "title": "SQL & Relational Algebra", "completed": True},
+            {"unit_number": 3, "title": "Normalization & Functional Dependencies", "completed": True},
+            {"unit_number": 4, "title": "Transactions & Concurrency Control", "completed": True},
+            {"unit_number": 5, "title": "Indexing, B-Trees & Storage", "completed": True}
+        ]
+    },
+
+    # Semester 6
+    {
+        "subject_code": "CS601",
+        "subject_name": "Software Engineering & Agile",
+        "department": "Computer Science & Engineering",
+        "semester": 6,
+        "credits": 4,
+        "academic_year": "2026-2027",
+        "batch": "2023-2027",
+        "section": "A",
+        "faculty_id": "faculty_rajesh",
+        "faculty_name": "Prof. Rajesh Kumar",
+        "syllabus_progress": 100.0,
+        "syllabus_topics": [
+            {"unit_number": 1, "title": "Software Development Life Cycles", "completed": True},
+            {"unit_number": 2, "title": "Agile & Scrum Framework", "completed": True},
+            {"unit_number": 3, "title": "Requirements Engineering & UML", "completed": True},
+            {"unit_number": 4, "title": "Software Testing & QA", "completed": True},
+            {"unit_number": 5, "title": "DevOps & CI/CD Pipelines", "completed": True}
+        ]
+    },
+
+    # Semester 7 (Active Core Cohort)
+    {
+        "subject_code": "CS701",
+        "subject_name": "Machine Learning",
+        "department": "Computer Science & Engineering",
+        "semester": 7,
+        "credits": 4,
+        "academic_year": "2026-2027",
+        "batch": "2023-2027",
+        "section": "A",
+        "faculty_id": "faculty_ananya",
+        "faculty_name": "Prof. Ananya Sharma",
+        "syllabus_progress": 80.0,
+        "syllabus_topics": [
+            {"unit_number": 1, "title": "Supervised Learning & Regression Models", "completed": True},
+            {"unit_number": 2, "title": "Classification, Decision Trees & Random Forests", "completed": True},
+            {"unit_number": 3, "title": "Support Vector Machines & Kernel Methods", "completed": True},
+            {"unit_number": 4, "title": "Clustering & Dimensionality Reduction (PCA)", "completed": True},
+            {"unit_number": 5, "title": "Neural Networks & Deep Learning Foundations", "completed": False}
+        ]
+    },
+    {
+        "subject_code": "CS702",
+        "subject_name": "Cloud Computing",
+        "department": "Computer Science & Engineering",
+        "semester": 7,
+        "credits": 4,
+        "academic_year": "2026-2027",
+        "batch": "2023-2027",
+        "section": "A",
+        "faculty_id": "faculty_ananya",
+        "faculty_name": "Prof. Ananya Sharma",
+        "syllabus_progress": 60.0,
+        "syllabus_topics": [
+            {"unit_number": 1, "title": "Cloud Architecture & Service Models (IaaS, PaaS, SaaS)", "completed": True},
+            {"unit_number": 2, "title": "Virtualization & Hypervisors", "completed": True},
+            {"unit_number": 3, "title": "Containerization & Docker Orchestration", "completed": True},
+            {"unit_number": 4, "title": "Kubernetes Cluster Management", "completed": False},
+            {"unit_number": 5, "title": "Serverless Computing & Cloud Security", "completed": False}
+        ]
+    },
+    {
+        "subject_code": "CS703",
+        "subject_name": "Compiler Design",
+        "department": "Computer Science & Engineering",
+        "semester": 7,
+        "credits": 4,
+        "academic_year": "2026-2027",
+        "batch": "2023-2027",
+        "section": "A",
+        "faculty_id": "faculty_rajesh",
+        "faculty_name": "Prof. Rajesh Kumar",
+        "syllabus_progress": 80.0,
+        "syllabus_topics": [
+            {"unit_number": 1, "title": "Lexical Analysis & Lex Tools", "completed": True},
+            {"unit_number": 2, "title": "Syntax Analysis & LR Parsers", "completed": True},
+            {"unit_number": 3, "title": "Syntax-Directed Translation", "completed": True},
+            {"unit_number": 4, "title": "Intermediate Code Generation (3-Address Code)", "completed": True},
+            {"unit_number": 5, "title": "Code Optimization & Target Code Generation", "completed": False}
+        ]
+    },
+    {
+        "subject_code": "CS704",
+        "subject_name": "Network Security",
+        "department": "Computer Science & Engineering",
+        "semester": 7,
+        "credits": 3,
+        "academic_year": "2026-2027",
+        "batch": "2023-2027",
+        "section": "A",
+        "faculty_id": "faculty_rajesh",
+        "faculty_name": "Prof. Rajesh Kumar",
+        "syllabus_progress": 60.0,
+        "syllabus_topics": [
+            {"unit_number": 1, "title": "Classical Cryptography & Symmetric Ciphers (AES/DES)", "completed": True},
+            {"unit_number": 2, "title": "Public Key Cryptography & RSA", "completed": True},
+            {"unit_number": 3, "title": "Hash Functions, HMAC & Digital Signatures", "completed": True},
+            {"unit_number": 4, "title": "Network Authentication & Kerberos", "completed": False},
+            {"unit_number": 5, "title": "Firewalls, Intrusion Detection & TLS Protocols", "completed": False}
+        ]
+    },
+    {
+        "subject_code": "CS705",
+        "subject_name": "Big Data Analytics",
+        "department": "Computer Science & Engineering",
+        "semester": 7,
+        "credits": 3,
+        "academic_year": "2026-2027",
+        "batch": "2023-2027",
+        "section": "A",
+        "faculty_id": "faculty_ananya",
+        "faculty_name": "Prof. Ananya Sharma",
+        "syllabus_progress": 80.0,
+        "syllabus_topics": [
+            {"unit_number": 1, "title": "Hadoop Architecture & HDFS Storage", "completed": True},
+            {"unit_number": 2, "title": "MapReduce Distributed Processing", "completed": True},
+            {"unit_number": 3, "title": "Apache Spark & Resilient Distributed Datasets", "completed": True},
+            {"unit_number": 4, "title": "NoSQL Systems (MongoDB, Cassandra)", "completed": True},
+            {"unit_number": 5, "title": "Streaming Data Pipelines with Apache Kafka", "completed": False}
+        ]
+    },
+    # Electronics Department Active Semester 7
+    {
+        "subject_code": "EC701",
+        "subject_name": "VLSI Design & Embedded Systems",
+        "department": "Electronics & Communication",
+        "semester": 7,
+        "credits": 4,
+        "academic_year": "2026-2027",
+        "batch": "2023-2027",
+        "section": "B",
+        "faculty_id": "faculty_rajesh",
+        "faculty_name": "Prof. Rajesh Kumar",
+        "syllabus_progress": 60.0,
+        "syllabus_topics": [
+            {"unit_number": 1, "title": "CMOS Logic & Inverter Characteristics", "completed": True},
+            {"unit_number": 2, "title": "MOSFET Fabrication & Layout Rules", "completed": True},
+            {"unit_number": 3, "title": "Subsystem Design & Arithmetic Circuits", "completed": True},
+            {"unit_number": 4, "title": "FPGA Architectures & Verilog HDL", "completed": False},
+            {"unit_number": 5, "title": "Low Power VLSI Design", "completed": False}
+        ]
+    },
+
+    # Semester 8
+    {
+        "subject_code": "CS801",
+        "subject_name": "Major Project Work Phase II",
+        "department": "Computer Science & Engineering",
+        "semester": 8,
+        "credits": 10,
+        "academic_year": "2026-2027",
+        "batch": "2023-2027",
+        "section": "A",
+        "faculty_id": "faculty_ananya",
+        "faculty_name": "Prof. Ananya Sharma",
+        "syllabus_progress": 20.0,
+        "syllabus_topics": [
+            {"unit_number": 1, "title": "Project Design Review & Architecture", "completed": True},
+            {"unit_number": 2, "title": "Module Implementation & Unit Testing", "completed": False},
+            {"unit_number": 3, "title": "System Integration & Validation", "completed": False},
+            {"unit_number": 4, "title": "Performance Benchmarking & Evaluation", "completed": False},
+            {"unit_number": 5, "title": "Final Project Thesis & Defense", "completed": False}
+        ]
+    }
+]
+
+ACADEMIC_RECORDS_DATA = [
+    # STU1001 (Aarav Sharma - Sem 7 High Performer)
+    {
+        "id": "AR-1001-CS701",
+        "student_id": "STU1001",
+        "student_name": "Aarav Sharma",
+        "department": "Computer Science & Engineering",
+        "semester": 7,
+        "academic_year": "2026-2027",
+        "subject_code": "CS701",
+        "subject_name": "Machine Learning",
+        "credits": 4,
+        "internal_1": 24.0,
+        "internal_2": 24.0,
+        "assignment_marks": 10.0,
+        "assignment_score": 10.0,
+        "lab_marks": 15.0,
+        "lab_score": 15.0,
+        "exam_marks": 92.0,
+        "semester_exam_score": 92.0,
+        "total_marks": 91.6,
+        "grade": "O",
+        "grade_points": 10.0,
+        "credits_earned": 4,
+        "classes_conducted": 45,
+        "classes_attended": 43,
+        "attendance_pct": 95.6,
+        "attendance_percentage": 95.6,
+        "attendance_status": "Good Standing",
+        "academic_risk": "Low"
+    },
+    {
+        "id": "AR-1001-CS702",
+        "student_id": "STU1001",
+        "student_name": "Aarav Sharma",
+        "department": "Computer Science & Engineering",
+        "semester": 7,
+        "academic_year": "2026-2027",
+        "subject_code": "CS702",
+        "subject_name": "Cloud Computing",
+        "credits": 4,
+        "internal_1": 22.0,
+        "internal_2": 23.0,
+        "assignment_marks": 9.5,
+        "assignment_score": 9.5,
+        "lab_marks": 14.5,
+        "lab_score": 14.5,
+        "exam_marks": 88.0,
+        "semester_exam_score": 88.0,
+        "total_marks": 86.9,
+        "grade": "A+",
+        "grade_points": 9.0,
+        "credits_earned": 4,
+        "classes_conducted": 45,
+        "classes_attended": 41,
+        "attendance_pct": 91.1,
+        "attendance_percentage": 91.1,
+        "attendance_status": "Good Standing",
+        "academic_risk": "Low"
+    },
+    {
+        "id": "AR-1001-CS703",
+        "student_id": "STU1001",
+        "student_name": "Aarav Sharma",
+        "department": "Computer Science & Engineering",
+        "semester": 7,
+        "academic_year": "2026-2027",
+        "subject_code": "CS703",
+        "subject_name": "Compiler Design",
+        "credits": 4,
+        "internal_1": 21.0,
+        "internal_2": 20.0,
+        "assignment_marks": 9.0,
+        "assignment_score": 9.0,
+        "lab_marks": 14.0,
+        "lab_score": 14.0,
+        "exam_marks": 82.0,
+        "semester_exam_score": 82.0,
+        "total_marks": 78.1,
+        "grade": "A",
+        "grade_points": 8.0,
+        "credits_earned": 4,
+        "classes_conducted": 45,
+        "classes_attended": 40,
+        "attendance_pct": 88.9,
+        "attendance_percentage": 88.9,
+        "attendance_status": "Good Standing",
+        "academic_risk": "Low"
+    },
+    {
+        "id": "AR-1001-CS704",
+        "student_id": "STU1001",
+        "student_name": "Aarav Sharma",
+        "department": "Computer Science & Engineering",
+        "semester": 7,
+        "academic_year": "2026-2027",
+        "subject_code": "CS704",
+        "subject_name": "Network Security",
+        "credits": 3,
+        "internal_1": 20.0,
+        "internal_2": 21.0,
+        "assignment_marks": 9.0,
+        "assignment_score": 9.0,
+        "lab_marks": 13.5,
+        "lab_score": 13.5,
+        "exam_marks": 79.0,
+        "semester_exam_score": 79.0,
+        "total_marks": 76.7,
+        "grade": "A",
+        "grade_points": 8.0,
+        "credits_earned": 3,
+        "classes_conducted": 45,
+        "classes_attended": 42,
+        "attendance_pct": 93.3,
+        "attendance_percentage": 93.3,
+        "attendance_status": "Good Standing",
+        "academic_risk": "Low"
+    },
+    {
+        "id": "AR-1001-CS705",
+        "student_id": "STU1001",
+        "student_name": "Aarav Sharma",
+        "department": "Computer Science & Engineering",
+        "semester": 7,
+        "academic_year": "2026-2027",
+        "subject_code": "CS705",
+        "subject_name": "Big Data Analytics",
+        "credits": 3,
+        "internal_1": 23.0,
+        "internal_2": 22.0,
+        "assignment_marks": 10.0,
+        "assignment_score": 10.0,
+        "lab_marks": 14.5,
+        "lab_score": 14.5,
+        "exam_marks": 86.0,
+        "semester_exam_score": 86.0,
+        "total_marks": 82.8,
+        "grade": "A+",
+        "grade_points": 9.0,
+        "credits_earned": 3,
+        "classes_conducted": 45,
+        "classes_attended": 41,
+        "attendance_pct": 91.1,
+        "attendance_percentage": 91.1,
+        "attendance_status": "Good Standing",
+        "academic_risk": "Low"
+    },
+
+    # STU1002 (Priya Nair - Sem 7 At-Risk / Critical Support)
+    {
+        "id": "AR-1002-CS701",
+        "student_id": "STU1002",
+        "student_name": "Priya Nair",
+        "department": "Computer Science & Engineering",
+        "semester": 7,
+        "academic_year": "2026-2027",
+        "subject_code": "CS701",
+        "subject_name": "Machine Learning",
+        "credits": 4,
+        "internal_1": 13.0,
+        "internal_2": 14.0,
+        "assignment_marks": 6.0,
+        "assignment_score": 6.0,
+        "lab_marks": 8.5,
+        "lab_score": 8.5,
+        "exam_marks": 52.0,
+        "semester_exam_score": 52.0,
+        "total_marks": 53.6,
+        "grade": "B",
+        "grade_points": 6.0,
+        "credits_earned": 4,
+        "classes_conducted": 45,
+        "classes_attended": 28,
+        "attendance_pct": 62.2,
+        "attendance_percentage": 62.2,
+        "attendance_status": "Critical Shortage",
+        "academic_risk": "High"
+    },
+    {
+        "id": "AR-1002-CS702",
+        "student_id": "STU1002",
+        "student_name": "Priya Nair",
+        "department": "Computer Science & Engineering",
+        "semester": 7,
+        "academic_year": "2026-2027",
+        "subject_code": "CS702",
+        "subject_name": "Cloud Computing",
+        "credits": 4,
+        "internal_1": 12.0,
+        "internal_2": 13.0,
+        "assignment_marks": 5.5,
+        "assignment_score": 5.5,
+        "lab_marks": 8.0,
+        "lab_score": 8.0,
+        "exam_marks": 54.0,
+        "semester_exam_score": 54.0,
+        "total_marks": 52.2,
+        "grade": "B",
+        "grade_points": 6.0,
+        "credits_earned": 4,
+        "classes_conducted": 45,
+        "classes_attended": 27,
+        "attendance_pct": 60.0,
+        "attendance_percentage": 60.0,
+        "attendance_status": "Critical Shortage",
+        "academic_risk": "High"
+    },
+    {
+        "id": "AR-1002-CS703",
+        "student_id": "STU1002",
+        "student_name": "Priya Nair",
+        "department": "Computer Science & Engineering",
+        "semester": 7,
+        "academic_year": "2026-2027",
+        "subject_code": "CS703",
+        "subject_name": "Compiler Design",
+        "credits": 4,
+        "internal_1": 8.0,
+        "internal_2": 9.0,
+        "assignment_marks": 4.5,
+        "assignment_score": 4.5,
+        "lab_marks": 6.0,
+        "lab_score": 6.0,
+        "exam_marks": 35.0,
+        "semester_exam_score": 35.0,
+        "total_marks": 39.5,
+        "grade": "F",
+        "grade_points": 0.0,
+        "credits_earned": 0,
+        "classes_conducted": 45,
+        "classes_attended": 26,
+        "attendance_pct": 57.8,
+        "attendance_percentage": 57.8,
+        "attendance_status": "Critical Shortage",
+        "academic_risk": "High"
+    },
+    {
+        "id": "AR-1002-CS704",
+        "student_id": "STU1002",
+        "student_name": "Priya Nair",
+        "department": "Computer Science & Engineering",
+        "semester": 7,
+        "academic_year": "2026-2027",
+        "subject_code": "CS704",
+        "subject_name": "Network Security",
+        "credits": 3,
+        "internal_1": 10.0,
+        "internal_2": 11.0,
+        "assignment_marks": 5.0,
+        "assignment_score": 5.0,
+        "lab_marks": 7.0,
+        "lab_score": 7.0,
+        "exam_marks": 48.0,
+        "semester_exam_score": 48.0,
+        "total_marks": 46.9,
+        "grade": "C",
+        "grade_points": 5.0,
+        "credits_earned": 3,
+        "classes_conducted": 45,
+        "classes_attended": 28,
+        "attendance_pct": 62.2,
+        "attendance_percentage": 62.2,
+        "attendance_status": "Critical Shortage",
+        "academic_risk": "High"
+    },
+    {
+        "id": "AR-1002-CS705",
+        "student_id": "STU1002",
+        "student_name": "Priya Nair",
+        "department": "Computer Science & Engineering",
+        "semester": 7,
+        "academic_year": "2026-2027",
+        "subject_code": "CS705",
+        "subject_name": "Big Data Analytics",
+        "credits": 3,
+        "internal_1": 11.0,
+        "internal_2": 10.0,
+        "assignment_marks": 5.5,
+        "assignment_score": 5.5,
+        "lab_marks": 7.5,
+        "lab_score": 7.5,
+        "exam_marks": 49.0,
+        "semester_exam_score": 49.0,
+        "total_marks": 48.2,
+        "grade": "C",
+        "grade_points": 5.0,
+        "credits_earned": 3,
+        "classes_conducted": 45,
+        "classes_attended": 26,
+        "attendance_pct": 57.8,
+        "attendance_percentage": 57.8,
+        "attendance_status": "Critical Shortage",
+        "academic_risk": "High"
+    }
+]
+
+
+def calculate_grade_and_points(total_marks):
+    """
+    Standard university 10-point relative grading scale:
+    O: 90-100 (10.0), A+: 80-89 (9.0), A: 70-79 (8.0),
+    B+: 60-69 (7.0), B: 50-59 (6.0), C: 40-49 (5.0), F: <40 (0.0).
+    """
+    score = float(total_marks or 0.0)
+    if score >= 90.0:
+        return "O", 10.0
+    elif score >= 80.0:
+        return "A+", 9.0
+    elif score >= 70.0:
+        return "A", 8.0
+    elif score >= 60.0:
+        return "B+", 7.0
+    elif score >= 50.0:
+        return "B", 6.0
+    elif score >= 40.0:
+        return "C", 5.0
+    else:
+        return "F", 0.0
+
+
+def get_all_subjects(department=None, semester=None):
+    """
+    Returns subjects filtered by department and/or semester.
+    """
+    results = copy.deepcopy(SUBJECTS_DATA)
+    if department:
+        results = [s for s in results if s.get('department', '').lower() == department.lower()]
+    if semester:
+        results = [s for s in results if int(s.get('semester', 0)) == int(semester)]
+    return results
+
+
+def get_subject_by_code(subject_code):
+    """
+    Finds a subject by its unique course code.
+    """
+    code_clean = (subject_code or '').strip().upper()
+    for s in SUBJECTS_DATA:
+        if s.get('subject_code', '').upper() == code_clean:
+            return s
+    return None
+
+
+def add_subject(subject_dict):
+    """
+    Registers a new academic subject with validation against duplicate allocations.
+    Automatically enlists standard syllabus units and initializes gradebook records.
+    """
+    code = (subject_dict.get('subject_code') or '').strip().upper()
+    if not code:
+        return None, "Subject code is mandatory."
+
+    if get_subject_by_code(code):
+        return None, f"Course code {code} is already allocated."
+
+    name = (subject_dict.get('subject_name') or '').strip()
+    dept = subject_dict.get('department') or "Computer Science & Engineering"
+    sem = int(subject_dict.get('semester') or 7)
+    credits = int(subject_dict.get('credits') or 4)
+    ay = subject_dict.get('academic_year') or "2026-2027"
+    batch = subject_dict.get('batch') or "2023-2027"
+    section = subject_dict.get('section') or "A"
+    faculty_id = subject_dict.get('faculty_id') or "faculty_ananya"
+    faculty_name = subject_dict.get('faculty_name') or "Prof. Ananya Sharma"
+
+    topics = [
+        {"unit_number": 1, "title": f"Unit 1: Fundamentals of {name}", "completed": False},
+        {"unit_number": 2, "title": f"Unit 2: Architecture & Analysis", "completed": False},
+        {"unit_number": 3, "title": f"Unit 3: Core Paradigms & Methodologies", "completed": False},
+        {"unit_number": 4, "title": f"Unit 4: Advanced Systems & Applications", "completed": False},
+        {"unit_number": 5, "title": f"Unit 5: Industry Case Studies & Capstone", "completed": False}
+    ]
+
+    new_sub = {
+        "subject_code": code,
+        "subject_name": name,
+        "department": dept,
+        "semester": sem,
+        "credits": credits,
+        "academic_year": ay,
+        "batch": batch,
+        "section": section,
+        "faculty_id": faculty_id,
+        "faculty_name": faculty_name,
+        "syllabus_progress": 0.0,
+        "syllabus_topics": topics
+    }
+    SUBJECTS_DATA.append(new_sub)
+
+    # Automatically enroll students in this department and semester
+    dept_students = [s for s in STUDENTS_DATA if s.get('department') == dept and int(s.get('semester', 7)) == sem]
+    for st in dept_students:
+        rec_id = f"AR-{st['id']}-{code}"
+        ACADEMIC_RECORDS_DATA.append({
+            "id": rec_id,
+            "student_id": st['id'],
+            "student_name": st['name'],
+            "department": dept,
+            "semester": sem,
+            "academic_year": ay,
+            "subject_code": code,
+            "subject_name": name,
+            "credits": credits,
+            "internal_1": 0.0,
+            "internal_2": 0.0,
+            "assignment_marks": 0.0,
+            "assignment_score": 0.0,
+            "lab_marks": 0.0,
+            "lab_score": 0.0,
+            "exam_marks": 0.0,
+            "semester_exam_score": 0.0,
+            "total_marks": 0.0,
+            "grade": "F",
+            "grade_points": 0.0,
+            "credits_earned": 0,
+            "classes_conducted": 45,
+            "classes_attended": 0,
+            "attendance_pct": 0.0,
+            "attendance_percentage": 0.0,
+            "attendance_status": "Critical Shortage",
+            "academic_risk": "High"
+        })
+
+    return new_sub, None
+
+
+def update_subject(subject_code, data):
+    """
+    Updates subject metadata.
+    """
+    sub = get_subject_by_code(subject_code)
+    if not sub:
+        return None
+
+    if 'subject_name' in data and data['subject_name']:
+        sub['subject_name'] = data['subject_name'].strip()
+    if 'credits' in data:
+        try:
+            sub['credits'] = int(data['credits'])
+        except (ValueError, TypeError):
+            pass
+    if 'semester' in data:
+        try:
+            sub['semester'] = int(data['semester'])
+        except (ValueError, TypeError):
+            pass
+    if 'batch' in data:
+        sub['batch'] = data['batch']
+    if 'section' in data:
+        sub['section'] = data['section']
+    if 'faculty_name' in data:
+        sub['faculty_name'] = data['faculty_name']
+
+    return sub
+
+
+def delete_subject(subject_code):
+    """
+    Removes a subject from allocation and cleans associated gradebook records.
+    """
+    global SUBJECTS_DATA, ACADEMIC_RECORDS_DATA
+    code = (subject_code or '').strip().upper()
+    SUBJECTS_DATA = [s for s in SUBJECTS_DATA if s.get('subject_code', '').upper() != code]
+    ACADEMIC_RECORDS_DATA = [r for r in ACADEMIC_RECORDS_DATA if r.get('subject_code', '').upper() != code]
+    return True
+
+
+def update_syllabus_unit(subject_code, unit_number, completed):
+    """
+    Updates completion state of a syllabus unit and recalculates overall syllabus progress.
+    """
+    sub = get_subject_by_code(subject_code)
+    if not sub:
+        return None
+
+    found = False
+    for u in sub.get('syllabus_topics', []):
+        if int(u.get('unit_number', 0)) == int(unit_number):
+            u['completed'] = bool(completed)
+            found = True
+            break
+
+    if not found:
+        return None
+
+    total_units = len(sub.get('syllabus_topics', []))
+    done_units = sum(1 for u in sub.get('syllabus_topics', []) if u.get('completed'))
+    sub['syllabus_progress'] = round((done_units / total_units) * 100.0, 1) if total_units > 0 else 0.0
+    return sub
+
+
+def get_academic_records(student_id=None, subject_code=None, department=None, semester=None):
+    """
+    Retrieves filtered academic assessment records.
+    """
+    records = copy.deepcopy(ACADEMIC_RECORDS_DATA)
+    if student_id:
+        records = [r for r in records if r.get('student_id', '').lower() == student_id.lower()]
+    if subject_code:
+        records = [r for r in records if r.get('subject_code', '').upper() == subject_code.upper()]
+    if department:
+        records = [r for r in records if r.get('department', '').lower() == department.lower()]
+    if semester:
+        records = [r for r in records if int(r.get('semester', 0)) == int(semester)]
+    return records
+
+
+def update_academic_record_marks(record_id_or_tuple=None, data=None, updater_user=None, **kwargs):
+    """
+    Updates student subject marks, recomputes total score, letter grade,
+    grade points, credits earned, attendance percentage, and academic risk.
+    """
+    if data is None:
+        data = kwargs
+    elif kwargs:
+        data = {**data, **kwargs}
+
+    if record_id_or_tuple is None:
+        rec_id = data.get('record_id')
+        stu_id = data.get('student_id')
+        sub_code = data.get('subject_code')
+        if rec_id:
+            record_id_or_tuple = rec_id
+        elif stu_id and sub_code:
+            record_id_or_tuple = (stu_id, sub_code)
+
+    rec = None
+    if isinstance(record_id_or_tuple, str):
+        for r in ACADEMIC_RECORDS_DATA:
+            if r.get('id') == record_id_or_tuple:
+                rec = r
+                break
+    elif isinstance(record_id_or_tuple, (tuple, list)) and len(record_id_or_tuple) >= 2:
+        stu_id, sub_code = record_id_or_tuple[:2]
+        for r in ACADEMIC_RECORDS_DATA:
+            if r.get('student_id', '').lower() == stu_id.lower() and r.get('subject_code', '').upper() == sub_code.upper():
+                rec = r
+                break
+
+    if not rec:
+        return None
+
+    int_1 = float(data.get('internal_1', rec.get('internal_1', 0.0)))
+    int_2 = float(data.get('internal_2', rec.get('internal_2', 0.0)))
+    asg = float(data.get('assignment_score', data.get('assignment_marks', rec.get('assignment_marks', 0.0))))
+    lab = float(data.get('lab_score', data.get('lab_marks', rec.get('lab_marks', 0.0))))
+    exam = float(data.get('semester_exam_score', data.get('exam_marks', rec.get('exam_marks', 0.0))))
+    conducted = int(data.get('classes_conducted', rec.get('classes_conducted', 45)))
+    attended = int(data.get('classes_attended', rec.get('classes_attended', 35)))
+
+    # Compute attendance
+    att_pct = round((attended / conducted) * 100, 1) if conducted > 0 else 0.0
+    if att_pct >= 75.0:
+        att_status = "Good Standing"
+    elif att_pct >= 65.0:
+        att_status = "Borderline Warning"
+    else:
+        att_status = "Critical Shortage"
+
+    # Compute weighted total marks (out of 100)
+    # Internals: (int_1 + int_2) * 0.5 + Assignment + Lab + Exam * 0.3
+    total_m = min(100.0, round(((int_1 + int_2) * 0.5) + asg + lab + (exam * 0.3), 1))
+    grade, grade_pts = calculate_grade_and_points(total_m)
+    credits = int(rec.get('credits', 4))
+    credits_earned = credits if grade != 'F' else 0
+
+    if grade == 'F' or att_pct < 65.0:
+        risk = "High"
+    elif grade in ['C', 'B'] or att_pct < 75.0:
+        risk = "Medium"
+    else:
+        risk = "Low"
+
+    rec['internal_1'] = int_1
+    rec['internal_2'] = int_2
+    rec['assignment_marks'] = asg
+    rec['assignment_score'] = asg
+    rec['lab_marks'] = lab
+    rec['lab_score'] = lab
+    rec['exam_marks'] = exam
+    rec['semester_exam_score'] = exam
+    rec['classes_conducted'] = conducted
+    rec['classes_attended'] = attended
+    rec['attendance_pct'] = att_pct
+    rec['attendance_percentage'] = att_pct
+    rec['attendance_status'] = att_status
+    rec['total_marks'] = total_m
+    rec['grade'] = grade
+    rec['grade_points'] = grade_pts
+    rec['credits_earned'] = credits_earned
+    rec['academic_risk'] = risk
+
+    # Synchronize student main record if active semester
+    student = get_student_by_id(rec['student_id'])
+    if student and int(student.get('semester', 7)) == int(rec.get('semester', 7)):
+        if 'subject_scores' not in student or not isinstance(student['subject_scores'], dict):
+            student['subject_scores'] = {}
+        student['subject_scores'][rec['subject_name']] = total_m
+
+    if updater_user:
+        log_audit(
+            updater_user.get("user_id"),
+            updater_user.get("username"),
+            updater_user.get("role"),
+            "UPDATE_STUDENT_MARKS",
+            f"/academic-records/{rec['id']}",
+            "SUCCESS",
+            f"Updated marks for {rec['student_name']} in {rec['subject_code']} (Total: {total_m}, Grade: {grade}, Att: {att_pct}%)"
+        )
+
+    return rec
+
+
+def calculate_student_semester_summary(student_id, semester=None):
+    """
+    Computes registered credits, earned credits, weighted SGPA,
+    average attendance, passed and failed subject counts, and institutional standing.
+    """
+    records = get_academic_records(student_id=student_id, semester=semester)
+    if not records:
+        return {
+            "registered_credits": 0,
+            "total_registered_credits": 0,
+            "earned_credits": 0,
+            "total_earned_credits": 0,
+            "sgpa": 0.0,
+            "avg_attendance": 0.0,
+            "average_attendance": 0.0,
+            "subjects_count": 0,
+            "passed_count": 0,
+            "failed_count": 0,
+            "failed_courses": 0,
+            "standing": "No Records",
+            "records": []
+        }
+
+    total_reg = sum(int(r.get('credits', 0)) for r in records)
+    total_earned = sum(int(r.get('credits_earned', 0)) for r in records)
+    weighted_pts = sum(float(r.get('credits', 0)) * float(r.get('grade_points', 0.0)) for r in records)
+    sgpa = round(weighted_pts / total_reg, 2) if total_reg > 0 else 0.0
+    avg_att = round(sum(float(r.get('attendance_percentage', r.get('attendance_pct', 0.0))) for r in records) / len(records), 1)
+    passed = sum(1 for r in records if r.get('grade') != 'F')
+    failed = sum(1 for r in records if r.get('grade') == 'F')
+
+    standing = "Good Standing"
+    if failed > 0 and avg_att < 65.0:
+        standing = "Critical Academic Review"
+    elif failed > 0:
+        standing = "Academic Warning (Backlog)"
+    elif avg_att < 75.0:
+        standing = "Attendance Shortage"
+
+    return {
+        "registered_credits": total_reg,
+        "total_registered_credits": total_reg,
+        "earned_credits": total_earned,
+        "total_earned_credits": total_earned,
+        "sgpa": sgpa,
+        "avg_attendance": avg_att,
+        "average_attendance": avg_att,
+        "subjects_count": len(records),
+        "passed_count": passed,
+        "failed_count": failed,
+        "failed_courses": failed,
+        "standing": standing,
+        "records": records
+    }
+
+
+def get_students_needing_academic_support(semester=None, department=None):
+    """
+    Identifies learners requiring targeted academic support:
+    Students with course backlogs (Grade 'F'), failing total marks (<40), or attendance < 75%.
+    """
+    dept_students = get_all_students(department=department)
+    support_list = []
+
+    for s in dept_students:
+        s_id = s.get('id')
+        sem = semester or s.get('semester', 7)
+        records = get_academic_records(student_id=s_id, semester=sem)
+        if not records:
+            continue
+
+        reasons = []
+        failing_courses = [r for r in records if r.get('grade') == 'F']
+        low_att_courses = [r for r in records if float(r.get('attendance_percentage', r.get('attendance_pct', 0.0))) < 75.0]
+
+        if failing_courses:
+            reasons.append(f"Course Backlog in {len(failing_courses)} subjects: " + ", ".join(r['subject_code'] for r in failing_courses))
+
+        if low_att_courses:
+            reasons.append(f"Attendance Shortage in {len(low_att_courses)} subjects (&lt; 75%)")
+
+        summary = calculate_student_semester_summary(s_id, sem)
+        if summary.get('sgpa', 10.0) < 6.0:
+            reasons.append(f"Low Semester GPA ({summary.get('sgpa'):.2f} / 10.0)")
+
+        if reasons:
+            support_list.append({
+                "student_id": s_id,
+                "student_name": s.get('name'),
+                "department": s.get('department'),
+                "semester": sem,
+                "sgpa": summary.get('sgpa'),
+                "average_attendance": summary.get('average_attendance'),
+                "reasons": reasons,
+                "standing": summary.get('standing')
+            })
+
+    return support_list
