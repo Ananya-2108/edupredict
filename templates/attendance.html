@@ -1,55 +1,57 @@
 {% extends "base.html" %}
 
-{% block title %}Attendance Management - EduPredict{% endblock %}
-{% block breadcrumb %}Attendance Audits & Telemetry{% endblock %}
+{% block title %}Attendance Tracking & Management - EduPredict SaaS{% endblock %}
+{% block breadcrumb %}Attendance Telemetry & Real-Time Monitoring{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
     <h1 class="page-title">Attendance Tracking & Alerts</h1>
-    <p class="page-subtitle">Continuous attendance rate auditing, low attendance flag identification, and correlation against examination performance.</p>
+    <p class="page-subtitle">Continuous attendance rate auditing, low attendance flag identification, and real-time telemetry updates with ML risk synchronization.</p>
   </div>
+  {% if session['user']['role'] in ['faculty', 'admin'] %}
   <div class="header-actions">
-    <button class="btn btn-teal" onclick="openModal('quickAttendanceModal')">
-      <i class="bi bi-pencil-square"></i> Update Student Attendance
+    <button class="btn btn-primary" onclick="openModal('quickAttendanceModal')" style="display: inline-flex; align-items: center; gap: 8px;">
+      <i data-lucide="edit-3" style="width: 16px; height: 16px;"></i> Update Student Attendance
     </button>
   </div>
+  {% endif %}
 </div>
 
 <!-- Attendance Highlights -->
 <div class="stats-grid">
   <div class="stat-card">
     <div class="stat-icon primary">
-      <i class="bi bi-calendar2-range-fill"></i>
+      <i data-lucide="calendar" style="width: 22px; height: 22px;"></i>
     </div>
     <div>
-      <div class="stat-value">{{ avg_att }}%</div>
+      <div class="stat-value"><span id="avgAttStat" class="counter" data-target="{{ avg_att }}">{{ avg_att }}</span>%</div>
       <div class="stat-label">Batch Average Attendance</div>
       <div class="stat-trend trend-up">
-        Standard norm 75%
+        <i data-lucide="shield-check" style="width: 12px; height: 12px;"></i> Standard threshold 75%
       </div>
     </div>
   </div>
 
   <div class="stat-card">
     <div class="stat-icon warning">
-      <i class="bi bi-exclamation-triangle"></i>
+      <i data-lucide="alert-triangle" style="width: 22px; height: 22px;"></i>
     </div>
     <div>
-      <div class="stat-value">{{ low_att_students|length }}</div>
+      <div class="stat-value" style="color: var(--color-warning);"><span id="lowAttStat" class="counter" data-target="{{ low_att_students|length }}">{{ low_att_students|length }}</span></div>
       <div class="stat-label">Below Threshold (&lt; 75%)</div>
       <div class="stat-trend trend-down">
-        Risk of university exam hall ticket withhold
+        Risk of exam hall ticket withhold
       </div>
     </div>
   </div>
 
   <div class="stat-card">
     <div class="stat-icon danger">
-      <i class="bi bi-shield-x"></i>
+      <i data-lucide="alert-octagon" style="width: 22px; height: 22px;"></i>
     </div>
     <div>
-      <div class="stat-value">{{ crit_att_students|length }}</div>
+      <div class="stat-value" style="color: var(--color-danger);"><span id="critAttStat" class="counter" data-target="{{ crit_att_students|length }}">{{ crit_att_students|length }}</span></div>
       <div class="stat-label">Critical Attendance (&lt; 65%)</div>
       <div class="stat-trend trend-down">
         Immediate detention alert active
@@ -59,10 +61,19 @@
 </div>
 
 <!-- Attendance Trend Chart -->
-<div class="card">
+<div class="card" style="margin-bottom: 24px;">
   <div class="card-header">
-    <h3 class="card-title"><i class="bi bi-graph-up" style="color: var(--color-teal);"></i> 6-Week Attendance Trajectory</h3>
-    <span class="badge badge-high">Live Department Tracking</span>
+    <div>
+      <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+        <i data-lucide="trending-up" style="width: 18px; height: 18px; color: var(--color-secondary);"></i>
+        6-Week Department Attendance Trajectory
+      </h3>
+      <p class="card-subtitle">Continuous multi-week lecture presence tracking across the cohort</p>
+    </div>
+    <span class="badge badge-high" style="display: inline-flex; align-items: center; gap: 4px;">
+      <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--color-success);"></span>
+      Live Department Tracking
+    </span>
   </div>
   <div style="height: 250px;">
     <canvas id="attendanceLineChart"></canvas>
@@ -71,11 +82,19 @@
 
 <!-- Detailed Student Attendance Table -->
 <div class="card" style="padding: 0; overflow: hidden;">
-  <div class="card-header" style="padding: 16px 20px 0;">
-    <h3 class="card-title"><i class="bi bi-table" style="color: var(--color-primary);"></i> Enrolled Students Attendance Register</h3>
+  <div class="card-header" style="padding: 18px 24px;">
+    <div>
+      <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+        <i data-lucide="table" style="width: 18px; height: 18px; color: var(--color-primary);"></i>
+        Enrolled Students Attendance Register
+      </h3>
+      <p class="card-subtitle">Live real-time ledger with inline updating</p>
+    </div>
+    <span class="badge badge-average">{{ students|length }} Enrolled Students</span>
   </div>
+  
   <div class="table-container">
-    <table class="table filterable-table">
+    <table class="table filterable-table" id="attendanceTable">
       <thead>
         <tr>
           <th>Student Details</th>
@@ -88,46 +107,55 @@
       </thead>
       <tbody>
         {% for s in students %}
-        <tr>
+        <tr id="row-{{ s.id }}">
           <td>
-            <div style="font-weight: 600; color: var(--color-primary);">{{ s.name }}</div>
+            <div style="font-weight: 700; color: var(--text-main);">{{ s.name }}</div>
             <div style="font-size: 0.75rem; color: var(--text-muted);">{{ s.id }} • Sem {{ s.semester }}</div>
           </td>
-          <td>
-            <div style="font-weight: 700; font-size: 0.95rem; color: {% if s.attendance < 65 %}var(--color-danger){% elif s.attendance < 75 %}var(--color-warning){% else %}var(--color-success){% endif %};">
+          <td style="min-width: 140px;">
+            <div id="att-val-{{ s.id }}" style="font-weight: 700; font-size: 0.98rem; color: {% if s.attendance < 65 %}var(--color-danger){% elif s.attendance < 75 %}var(--color-warning){% else %}var(--color-success){% endif %};">
               {{ s.attendance }}%
             </div>
-            <div class="progress-bar-wrap" style="width: 85px; margin-top: 4px;">
-              <div class="progress-bar-fill {% if s.attendance < 65 %}progress-danger{% elif s.attendance < 75 %}progress-warning{% else %}progress-success{% endif %}" style="width: {{ s.attendance }}%;"></div>
+            <div class="progress-bar-wrap" style="width: 95px; height: 6px; margin-top: 4px; background: #e2e8f0; border-radius: 9999px; overflow: hidden;">
+              <div id="progress-{{ s.id }}" class="progress-bar-fill {% if s.attendance < 65 %}progress-danger{% elif s.attendance < 75 %}progress-warning{% else %}progress-success{% endif %}" style="height: 100%; width: {{ s.attendance }}%; background: {% if s.attendance < 65 %}var(--color-danger){% elif s.attendance < 75 %}var(--color-warning){% else %}var(--color-success){% endif %};"></div>
             </div>
           </td>
           <td>
-            {% if s.attendance < 65 %}
-              <span class="badge badge-risk-high">Critical Shortage</span>
-            {% elif s.attendance < 75 %}
-              <span class="badge badge-risk-med">Borderline Warning</span>
-            {% else %}
-              <span class="badge badge-risk-low">Good Standing</span>
-            {% endif %}
+            <span id="badge-{{ s.id }}" class="badge {% if s.attendance < 65 %}badge-risk-high{% elif s.attendance < 75 %}badge-risk-med{% else %}badge-risk-low{% endif %}">
+              {% if s.attendance < 65 %}
+                Critical Shortage
+              {% elif s.attendance < 75 %}
+                Borderline Warning
+              {% else %}
+                Good Standing
+              {% endif %}
+            </span>
           </td>
           <td>
-            <span style="font-weight: 600;">{{ s.internal_marks }}/100</span>
+            <span style="font-weight: 600; color: var(--text-main);">{{ s.internal_marks }}/100</span>
           </td>
           <td>
-            <span style="font-size: 0.8rem; color: var(--text-muted);">
+            <span id="trend-{{ s.id }}" style="font-size: 0.8rem; font-family: monospace; color: var(--text-muted);">
               {{ s.attendance_trend | join('%, ') }}%
             </span>
           </td>
           <td>
-            <a href="{{ url_for('student_profile', student_id=s.id) }}" class="btn btn-outline btn-sm">
-              <i class="bi bi-clock-history"></i> Log History
-            </a>
+            <div style="display: flex; gap: 6px;">
+              {% if session['user']['role'] in ['faculty', 'admin'] %}
+              <button type="button" class="btn btn-outline btn-sm" onclick="openUpdateModal('{{ s.id }}', '{{ s.name }}', {{ s.attendance }})" style="display: inline-flex; align-items: center; gap: 4px;">
+                <i data-lucide="edit-2" style="width: 13px; height: 13px;"></i> Quick Edit
+              </button>
+              {% endif %}
+              <a href="{{ url_for('student_profile', student_id=s.id) }}" class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 4px;">
+                <i data-lucide="user" style="width: 13px; height: 13px;"></i> Profile
+              </a>
+            </div>
           </td>
         </tr>
         {% else %}
         <tr>
           <td colspan="6" style="text-align: center; padding: 36px; color: var(--text-muted);">
-            <i class="bi bi-calendar-x" style="font-size: 2rem; display: block; margin-bottom: 8px; opacity: 0.5;"></i>
+            <i data-lucide="calendar-x" style="width: 36px; height: 36px; margin: 0 auto 8px; opacity: 0.5;"></i>
             No attendance records yet. Add a student to track and monitor attendance.
           </td>
         </tr>
@@ -137,70 +165,303 @@
   </div>
 </div>
 
-<!-- Modal: Quick Update Attendance -->
-<div class="modal-backdrop" id="quickAttendanceModal">
-  <div class="modal-content">
+{% if session['user']['role'] in ['faculty', 'admin'] %}
+<!-- Modal: Real-Time Attendance Updater -->
+<div class="modal modal-backdrop" id="quickAttendanceModal">
+  <div class="modal-content" style="max-width: 520px;">
     <button class="modal-close-btn" onclick="closeModal('quickAttendanceModal')">&times;</button>
-    <h3 style="color: var(--color-primary); margin-bottom: 6px; font-weight: 700;">Update Attendance Percentage</h3>
-    <form method="POST" action="{{ url_for('api_update_attendance') }}">
-      <div class="form-group">
-        <label class="form-label">Select Student</label>
-        <select name="student_id" class="form-control" required>
+    
+    <div style="margin-bottom: 20px;">
+      <h3 style="color: var(--text-main); font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+        <i data-lucide="check-circle" style="width: 20px; height: 20px; color: var(--color-secondary);"></i>
+        Update Student Attendance
+      </h3>
+      <p style="font-size: 0.84rem; color: var(--text-muted); margin: 0;">Adjust and synchronize student attendance telemetry in real time with automated risk classification.</p>
+    </div>
+
+    <form id="attendanceForm" onsubmit="submitAttendanceUpdate(event)">
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label class="form-label" style="font-weight: 600;">Target Student</label>
+        <select name="student_id" id="modalStudentSelect" class="form-control" onchange="onStudentSelect(this)" required>
           {% for s in students %}
-          <option value="{{ s.id }}">{{ s.name }} (Current: {{ s.attendance }}%)</option>
+          <option value="{{ s.id }}" data-att="{{ s.attendance }}" data-name="{{ s.name }}">
+            {{ s.name }} ({{ s.id }}) — Current: {{ s.attendance }}%
+          </option>
           {% endfor %}
         </select>
       </div>
 
-      <div class="form-group">
-        <label class="form-label">New Attendance Percentage (%)</label>
-        <input type="number" step="0.1" name="attendance" class="form-control" min="0" max="100" required>
+      <div class="form-group" style="margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <label class="form-label" style="margin: 0; font-weight: 600;">Updated Attendance Percentage</label>
+          <span id="modalAttendanceBadge" class="badge badge-risk-low">Good Standing</span>
+        </div>
+        
+        <!-- Range slider and synchronized numeric input -->
+        <div style="display: flex; gap: 14px; align-items: center;">
+          <input type="range" id="modalAttRange" min="0" max="100" step="0.5" value="75" class="form-control" style="flex: 1; cursor: pointer;" oninput="syncAttendanceInputs(this.value, 'range')">
+          <div style="position: relative; width: 100px;">
+            <input type="number" id="modalAttNumber" name="attendance" step="0.1" min="0" max="100" value="75.0" class="form-control" style="padding-right: 24px; font-weight: 700; text-align: center;" required oninput="syncAttendanceInputs(this.value, 'number')">
+            <span style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-weight: 600; color: var(--text-muted); pointer-events: none;">%</span>
+          </div>
+        </div>
       </div>
 
-      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px;">
+      <!-- Quick Preset Adjustment Buttons -->
+      <div style="margin-bottom: 20px;">
+        <div style="font-size: 0.76rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">Quick Presets:</div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="adjustAttendance(5)">+5%</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="adjustAttendance(-5)">-5%</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="setAttendancePreset(85.0)">Safe (85%)</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="setAttendancePreset(75.0)">Norm (75%)</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick="setAttendancePreset(58.0)">Critical (58%)</button>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 16px;">
         <button type="button" class="btn btn-outline" onclick="closeModal('quickAttendanceModal')">Cancel</button>
-        <button type="submit" class="btn btn-teal">Save Updated Attendance</button>
+        <button type="submit" id="submitAttBtn" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 8px;">
+          <i data-lucide="save" style="width: 15px; height: 15px;"></i> Save Attendance in Real Time
+        </button>
       </div>
     </form>
   </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
+let attendanceChart = null;
+
 document.addEventListener('DOMContentLoaded', function() {
-  const lineCtx = document.getElementById('attendanceLineChart').getContext('2d');
-  new Chart(lineCtx, {
-    type: 'line',
-    data: {
-      labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'],
-      datasets: [
-        {
-          label: 'Department Class Average Attendance (%)',
-          data: [82.5, 81.0, 79.4, 78.8, 77.9, 78.4],
-          borderColor: '#0d9488',
-          backgroundColor: 'rgba(13, 148, 136, 0.1)',
-          fill: true,
-          tension: 0.3
-        },
-        {
-          label: 'University Minimum Threshold (75%)',
-          data: [75, 75, 75, 75, 75, 75],
-          borderColor: '#ef4444',
-          borderDash: [6, 4],
-          fill: false,
-          pointRadius: 0
+  // Initialize Chart.js
+  const lineCtx = document.getElementById('attendanceLineChart');
+  if (lineCtx) {
+    attendanceChart = new Chart(lineCtx.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'],
+        datasets: [
+          {
+            label: 'Department Class Average Attendance (%)',
+            data: [82.5, 81.0, 79.4, 78.8, 77.9, {{ avg_att }}],
+            borderColor: '#2563EB',
+            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+            fill: true,
+            tension: 0.35,
+            pointRadius: 5
+          },
+          {
+            label: 'University Minimum Threshold (75%)',
+            data: [75, 75, 75, 75, 75, 75],
+            borderColor: '#DC2626',
+            borderDash: [6, 4],
+            fill: false,
+            pointRadius: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { min: 40, max: 100 }
         }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: { min: 60, max: 100 }
+      }
+    });
+  }
+
+  // Auto-init modal with first student value
+  const selectEl = document.getElementById('modalStudentSelect');
+  if (selectEl && selectEl.options.length > 0) {
+    onStudentSelect(selectEl);
+  }
+});
+
+// Synchronize Range Slider & Number Input
+function syncAttendanceInputs(val, source) {
+  let numVal = parseFloat(val);
+  if (isNaN(numVal)) numVal = 0;
+  if (numVal < 0) numVal = 0;
+  if (numVal > 100) numVal = 100;
+
+  if (source === 'range') {
+    document.getElementById('modalAttNumber').value = numVal.toFixed(1);
+  } else {
+    document.getElementById('modalAttRange').value = numVal;
+  }
+
+  // Update Preview Badge
+  const badge = document.getElementById('modalAttendanceBadge');
+  if (badge) {
+    if (numVal < 65) {
+      badge.textContent = 'Critical Shortage';
+      badge.className = 'badge badge-risk-high';
+    } else if (numVal < 75) {
+      badge.textContent = 'Borderline Warning';
+      badge.className = 'badge badge-risk-med';
+    } else {
+      badge.textContent = 'Good Standing';
+      badge.className = 'badge badge-risk-low';
+    }
+  }
+}
+
+function adjustAttendance(delta) {
+  const current = parseFloat(document.getElementById('modalAttNumber').value) || 75;
+  syncAttendanceInputs(current + delta, 'programmatic');
+}
+
+function setAttendancePreset(val) {
+  syncAttendanceInputs(val, 'programmatic');
+}
+
+function onStudentSelect(selectEl) {
+  const selectedOpt = selectEl.options[selectEl.selectedIndex];
+  if (!selectedOpt) return;
+  const currentAtt = parseFloat(selectedOpt.getAttribute('data-att')) || 75.0;
+  syncAttendanceInputs(currentAtt, 'programmatic');
+}
+
+// Open modal for a specific student directly
+function openUpdateModal(studentId, studentName, attendance) {
+  const selectEl = document.getElementById('modalStudentSelect');
+  if (selectEl) {
+    for (let i = 0; i < selectEl.options.length; i++) {
+      if (selectEl.options[i].value === studentId) {
+        selectEl.selectedIndex = i;
+        break;
       }
     }
+    syncAttendanceInputs(attendance, 'programmatic');
+  }
+  openModal('quickAttendanceModal');
+}
+
+// Real-Time Asynchronous Form Submission
+function submitAttendanceUpdate(event) {
+  event.preventDefault();
+  const submitBtn = document.getElementById('submitAttBtn');
+  const studentId = document.getElementById('modalStudentSelect').value;
+  const attendance = parseFloat(document.getElementById('modalAttNumber').value);
+
+  if (!studentId || isNaN(attendance)) {
+    if (typeof showToast === 'function') showToast('Please select a student and valid attendance.', 'warning');
+    return;
+  }
+
+  const originalBtnText = submitBtn.innerHTML;
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<span style="display:inline-block; width:12px; height:12px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation: spin 0.6s linear infinite; margin-right:6px;"></span> Saving...';
+
+  fetch('/api/attendance/update', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    body: JSON.stringify({
+      student_id: studentId,
+      attendance: attendance
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = originalBtnText;
+
+    if (data.success) {
+      const s = data.student;
+      const stats = data.stats;
+
+      // 1. Update Table Row in Real Time
+      const valEl = document.getElementById(`att-val-${s.id}`);
+      const progEl = document.getElementById(`progress-${s.id}`);
+      const badgeEl = document.getElementById(`badge-${s.id}`);
+      const trendEl = document.getElementById(`trend-${s.id}`);
+
+      if (valEl) {
+        valEl.textContent = `${s.attendance}%`;
+        valEl.style.color = s.attendance < 65 ? 'var(--color-danger)' : (s.attendance < 75 ? 'var(--color-warning)' : 'var(--color-success)');
+      }
+
+      if (progEl) {
+        progEl.style.width = `${s.attendance}%`;
+        progEl.style.backgroundColor = s.attendance < 65 ? 'var(--color-danger)' : (s.attendance < 75 ? 'var(--color-warning)' : 'var(--color-success)');
+      }
+
+      if (badgeEl) {
+        if (s.attendance < 65) {
+          badgeEl.textContent = 'Critical Shortage';
+          badgeEl.className = 'badge badge-risk-high';
+        } else if (s.attendance < 75) {
+          badgeEl.textContent = 'Borderline Warning';
+          badgeEl.className = 'badge badge-risk-med';
+        } else {
+          badgeEl.textContent = 'Good Standing';
+          badgeEl.className = 'badge badge-risk-low';
+        }
+      }
+
+      if (trendEl && s.attendance_trend) {
+        trendEl.textContent = s.attendance_trend.join('%, ') + '%';
+      }
+
+      // 2. Update Top Metric Stat Cards in Real Time
+      const avgStat = document.getElementById('avgAttStat');
+      const lowStat = document.getElementById('lowAttStat');
+      const critStat = document.getElementById('critAttStat');
+
+      if (avgStat && stats) avgStat.textContent = stats.avg_att;
+      if (lowStat && stats) lowStat.textContent = stats.low_count;
+      if (critStat && stats) critStat.textContent = stats.crit_count;
+
+      // 3. Update Chart.js Trajectory in Real Time
+      if (attendanceChart && stats) {
+        const len = attendanceChart.data.datasets[0].data.length;
+        attendanceChart.data.datasets[0].data[len - 1] = stats.avg_att;
+        attendanceChart.update();
+      }
+
+      // 4. Update data-att attribute on select option for next time
+      const selectEl = document.getElementById('modalStudentSelect');
+      if (selectEl) {
+        for (let opt of selectEl.options) {
+          if (opt.value === s.id) {
+            opt.setAttribute('data-att', s.attendance);
+            opt.textContent = `${s.name} (${s.id}) — Current: ${s.attendance}%`;
+            break;
+          }
+        }
+      }
+
+      // 5. Show Success Toast Notification & Close Modal
+      closeModal('quickAttendanceModal');
+      if (typeof showToast === 'function') {
+        showToast(data.message, 'success', 4000);
+      }
+    } else {
+      if (typeof showToast === 'function') {
+        showToast(data.error || 'Failed to update attendance.', 'danger');
+      }
+    }
+  })
+  .catch(err => {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = originalBtnText;
+    console.error('Error updating attendance:', err);
+    if (typeof showToast === 'function') {
+      showToast('Network error updating attendance.', 'danger');
+    }
   });
-});
+}
 </script>
+<style>
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+</style>
 {% endblock %}

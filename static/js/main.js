@@ -98,9 +98,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // 6. Modal Outside Click Handler
   window.addEventListener('click', function (e) {
-    if (e.target.classList && e.target.classList.contains('modal')) {
+    if (e.target.classList && (e.target.classList.contains('modal') || e.target.classList.contains('modal-backdrop'))) {
       e.target.style.display = 'none';
       e.target.classList.remove('active');
+      e.target.classList.remove('show');
     }
   });
 

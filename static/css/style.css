@@ -1039,7 +1039,7 @@ input[type="range"].form-control {
    Modals
    =================================================================== */
 
-.modal {
+.modal, .modal-backdrop {
   display: none;
   position: fixed;
   top: 0;
@@ -1054,7 +1054,7 @@ input[type="range"].form-control {
   padding: 20px;
 }
 
-.modal.active, .modal.show {
+.modal.active, .modal.show, .modal-backdrop.active, .modal-backdrop.show {
   display: flex !important;
 }
 

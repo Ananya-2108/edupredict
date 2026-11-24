@@ -751,18 +751,84 @@ def attendance_management():
 @app.route('/api/attendance/update', methods=['POST'])
 @role_required('faculty', 'admin')
 def api_update_attendance():
-    student_id = request.form.get('student_id')
+    # Support both multipart form data and application/json payloads
+    req_json = request.get_json(silent=True) or {}
+    student_id = request.form.get('student_id') or req_json.get('student_id')
+    raw_att = request.form.get('attendance') if 'attendance' in request.form else req_json.get('attendance')
+    
+    if not student_id:
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': 'Student ID is required'}), 400
+        flash('Student ID is required.', 'danger')
+        return redirect(url_for('attendance_management'))
+        
     verify_student_ownership(student_id)
     
-    new_att = float(request.form.get('attendance', 75))
+    try:
+        new_att = round(float(raw_att), 1)
+        if new_att < 0 or new_att > 100:
+            raise ValueError("Percentage must be between 0 and 100.")
+    except (ValueError, TypeError) as err:
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': f'Invalid attendance value: {err}'}), 400
+        flash(f'Please enter a valid attendance percentage between 0 and 100: {err}', 'danger')
+        return redirect(url_for('attendance_management'))
+        
     s = get_student_by_id(student_id)
-    if s:
-        s['attendance'] = new_att
-        s['attendance_trend'].append(new_att)
-        if len(s['attendance_trend']) > 6:
-            s['attendance_trend'].pop(0)
-        update_student(student_id, {'attendance': new_att}, ml_model=ml_model, updater_user=session['user'])
-        flash(f"Attendance for {s['name']} successfully updated to {new_att}%.", 'success')
+    if not s:
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': 'Student not found'}), 404
+        flash("Student record not found.", "danger")
+        return redirect(url_for('attendance_management'))
+        
+    # Update attendance & longitudinal history trend
+    s['attendance'] = new_att
+    if 'attendance_trend' not in s or not isinstance(s['attendance_trend'], list):
+        s['attendance_trend'] = [max(40, new_att - 4), max(40, new_att - 2), new_att]
+    s['attendance_trend'].append(new_att)
+    if len(s['attendance_trend']) > 6:
+        s['attendance_trend'].pop(0)
+        
+    # Re-run ML evaluation and update student
+    update_student(student_id, {'attendance': new_att}, ml_model=ml_model, updater_user=session['user'])
+    log_audit(
+        session['user']['user_id'],
+        session['user']['username'],
+        session['user']['role'],
+        "UPDATE_ATTENDANCE",
+        f"/attendance/{student_id}",
+        "SUCCESS",
+        f"Updated attendance for {s['name']} ({student_id}) to {new_att}%."
+    )
+    
+    # Recalculate department macro averages
+    dept = session['user'].get('department') if session['user'].get('role') == 'faculty' else None
+    cohort = get_students_for_faculty(dept)
+    total = len(cohort)
+    avg_att = round(sum(st['attendance'] for st in cohort) / total, 1) if total > 0 else 0
+    low_count = sum(1 for st in cohort if st['attendance'] < 75.0)
+    crit_count = sum(1 for st in cohort if st['attendance'] < 65.0)
+    
+    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.headers.get('Accept') == 'application/json':
+        return jsonify({
+            'success': True,
+            'message': f"Attendance for {s['name']} successfully updated to {new_att}%.",
+            'student': {
+                'id': s['id'],
+                'name': s['name'],
+                'attendance': s['attendance'],
+                'attendance_trend': s['attendance_trend'],
+                'predicted_category': s['predicted_category'],
+                'risk_level': s['risk_level']
+            },
+            'stats': {
+                'avg_att': avg_att,
+                'low_count': low_count,
+                'crit_count': crit_count
+            }
+        })
+        
+    flash(f"Attendance for {s['name']} successfully updated to {new_att}%.", 'success')
     return redirect(url_for('attendance_management'))
 
 # -------------------------------------------------------------------
