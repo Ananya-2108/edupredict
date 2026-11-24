@@ -120,3 +120,17 @@ CREATE TABLE IF NOT EXISTS notifications (
     is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 10. Security & Access Audit Logs
+CREATE TABLE IF NOT EXISTS audit_logs (
+    log_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    username VARCHAR(100) NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    action VARCHAR(100) NOT NULL,
+    resource VARCHAR(255) NOT NULL,
+    status ENUM('SUCCESS', 'FAILED', 'BLOCKED', 'DENIED') NOT NULL,
+    details TEXT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
+);

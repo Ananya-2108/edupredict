@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}Administrator Control Center - EduPredict{% endblock %}
+{% block breadcrumb %}Institutional Administration & Audit Console{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Institutional Administration Portal</h1>
+    <p class="page-subtitle">Centralized governance for user identities, role-based access control, departmental assignments, and real-time security telemetry.</p>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-teal" onclick="openModal('addUserModal')">
+      <i class="bi bi-person-plus-fill"></i> Provision New User
+    </button>
+    <a href="{{ url_for('faculty_dashboard') }}" class="btn btn-outline">
+      <i class="bi bi-mortarboard"></i> View Faculty Analytics
+    </a>
+  </div>
+</div>
+
+<!-- 1. Institutional Overview Metric Cards -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon primary">
+      <i class="bi bi-shield-lock-fill"></i>
+    </div>
+    <div>
+      <div class="stat-value">{{ total_users }}</div>
+      <div class="stat-label">Provisioned Accounts</div>
+      <div class="stat-trend trend-up">
+        <i class="bi bi-check-circle"></i> RBAC Active
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon teal">
+      <i class="bi bi-mortarboard-fill"></i>
+    </div>
+    <div>
+      <div class="stat-value">{{ total_students }}</div>
+      <div class="stat-label">Enrolled Students</div>
+      <div class="stat-trend trend-up">
+        Multi-department tracked
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon success">
+      <i class="bi bi-person-badge-fill"></i>
+    </div>
+    <div>
+      <div class="stat-value">{{ total_faculty }}</div>
+      <div class="stat-label">Faculty Advisors</div>
+      <div class="stat-trend trend-up">
+        Assigned to Depts
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon warning">
+      <i class="bi bi-journal-text"></i>
+    </div>
+    <div>
+      <div class="stat-value">{{ audit_logs|length }}</div>
+      <div class="stat-label">Security Audit Records</div>
+      <div class="stat-trend trend-up">
+        Immutable Telemetry
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. User Accounts Management Table -->
+<div class="card" style="padding: 0; overflow: hidden; margin-bottom: 28px;">
+  <div class="card-header" style="padding: 20px 24px; border-bottom: 1px solid var(--border-color); margin-bottom: 0;">
+    <div>
+      <h3 class="card-title"><i class="bi bi-people" style="color: var(--color-teal);"></i> Institutional User Directory</h3>
+      <p class="card-subtitle">Manage role privileges, department affiliations, and linked student records</p>
+    </div>
+    <span class="badge badge-high">{{ total_users }} Accounts Configured</span>
+  </div>
+
+  <div class="table-container">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Role</th>
+          <th>Department</th>
+          <th>Student Identity</th>
+          <th>Created Date</th>
+          <th>Access Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>
+            <div style="font-weight: 700; color: var(--color-primary);">{{ u.full_name }}</div>
+            <div style="font-size: 0.78rem; color: var(--text-muted);">{{ u.username }} • {{ u.email }}</div>
+          </td>
+          <td>
+            <span class="badge {% if u.role == 'admin' %}badge-danger{% elif u.role == 'faculty' %}badge-high{% else %}badge-warning{% endif %}">
+              {{ u.role|upper }}
+            </span>
+          </td>
+          <td>{{ u.department or 'General' }}</td>
+          <td>
+            {% if u.student_id %}
+              <span style="font-weight: 600; color: var(--color-teal); font-family: monospace;">{{ u.student_id }}</span>
+            {% else %}
+              <span style="color: var(--text-muted); font-size: 0.8rem;">N/A (Staff)</span>
+            {% endif %}
+          </td>
+          <td style="font-size: 0.82rem; color: var(--text-muted);">{{ u.created_at }}</td>
+          <td>
+            <span class="badge badge-success"><i class="bi bi-shield-check"></i> Authorized</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 3. Real-Time Platform Activity & Security Audit Logs -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div class="card-header" style="padding: 20px 24px; border-bottom: 1px solid var(--border-color); margin-bottom: 0;">
+    <div>
+      <h3 class="card-title"><i class="bi bi-shield-exclamation" style="color: var(--color-primary);"></i> Security & Access Audit Log</h3>
+      <p class="card-subtitle">Audited authorization events, IDOR violation blocks, and administrative changes</p>
+    </div>
+    <span class="badge badge-warning">Live Audit Feed</span>
+  </div>
+
+  <div class="table-container">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Actor</th>
+          <th>Action</th>
+          <th>Resource Path</th>
+          <th>Outcome</th>
+          <th>Security Telemetry</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in audit_logs[:20] %}
+        <tr>
+          <td style="font-size: 0.8rem; font-family: monospace; color: var(--text-muted);">{{ log.timestamp }}</td>
+          <td>
+            <div style="font-weight: 600;">{{ log.username }}</div>
+            <span style="font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted);">{{ log.role }}</span>
+          </td>
+          <td>
+            <span style="font-weight: 700; font-size: 0.82rem; color: var(--color-primary); font-family: monospace;">{{ log.action }}</span>
+          </td>
+          <td style="font-size: 0.82rem; font-family: monospace; color: var(--text-secondary);">{{ log.resource }}</td>
+          <td>
+            {% if log.status == 'SUCCESS' %}
+              <span class="badge badge-success">SUCCESS</span>
+            {% elif log.status == 'BLOCKED' or log.status == 'DENIED' %}
+              <span class="badge badge-danger">{{ log.status }}</span>
+            {% else %}
+              <span class="badge badge-warning">{{ log.status }}</span>
+            {% endif %}
+          </td>
+          <td style="font-size: 0.82rem; color: var(--text-muted);">{{ log.details }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal: Provision User Account -->
+<div id="addUserModal" class="modal">
+  <div class="modal-content">
+    <button class="modal-close-btn" onclick="closeModal('addUserModal')">&times;</button>
+    <div style="margin-bottom: 20px;">
+      <h3 style="color: var(--color-primary); font-size: 1.3rem; font-weight: 700;">Provision User Account</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">Create new authenticated user with strictly bounded role permissions.</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('admin_create_user') }}">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input type="text" name="full_name" class="form-control" required placeholder="e.g. Dr. Ramesh Kumar">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input type="text" name="username" class="form-control" required placeholder="e.g. ramesh_ece">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" name="email" class="form-control" required placeholder="user@college.edu">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Temporary Password</label>
+          <input type="password" name="password" class="form-control" required placeholder="At least 6 characters">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Role Privilege</label>
+          <select name="role" class="form-control" required>
+            <option value="student">Student</option>
+            <option value="faculty">Faculty Member</option>
+            <option value="admin">Administrator</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Department</label>
+          <select name="department" class="form-control">
+            <option value="Computer Science & Engineering">Computer Science & Engineering</option>
+            <option value="Electronics & Communication">Electronics & Communication</option>
+            <option value="Information Technology">Information Technology</option>
+            <option value="Administration">Administration</option>
+          </select>
+        </div>
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label class="form-label">Student ID (Leave blank if Faculty/Admin)</label>
+          <input type="text" name="student_id" class="form-control" placeholder="e.g. STU1005">
+        </div>
+      </div>
+
+      <div style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" class="btn btn-outline" onclick="closeModal('addUserModal')">Cancel</button>
+        <button type="submit" class="btn btn-teal">
+          <i class="bi bi-shield-check"></i> Provision Account
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

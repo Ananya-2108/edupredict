@@ -1,79 +1,82 @@
 {% extends "base.html" %}
 
-{% block title %}Faculty Dashboard - EduPredict{% endblock %}
-{% block breadcrumb %}Faculty Analytics & Academic Overview{% endblock %}
+{% block title %}Faculty Analytics Dashboard - EduPredict SaaS{% endblock %}
+{% block breadcrumb %}Institutional Academic Analytics & Cohort Triage{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title">Department Academic Dashboard</h1>
-    <p class="page-subtitle">Real-time performance intelligence, risk monitoring, and ML cohort distribution for Computer Science & Engineering (7th Sem).</p>
+    <h1 class="page-title">Department Academic Analytics</h1>
+    <p class="page-subtitle">Real-time performance intelligence, predictive risk triage, and ML cohort distribution for Computer Science & Engineering.</p>
   </div>
   <div class="header-actions">
     <button class="btn btn-primary" onclick="openModal('addStudentModal')">
-      <i class="bi bi-person-plus-fill"></i> Add Fresh Student
+      <i data-lucide="user-plus" style="width: 16px; height: 16px;"></i> Add Student
     </button>
-    <a href="{{ url_for('performance_prediction') }}" class="btn btn-teal">
-      <i class="bi bi-cpu"></i> Predict Student Performance
+    <button class="btn btn-outline" onclick="openModal('bulkImportModal')">
+      <i data-lucide="upload" style="width: 16px; height: 16px;"></i> Bulk Import CSV
+    </button>
+    <a href="{{ url_for('performance_prediction') }}" class="btn btn-outline">
+      <i data-lucide="cpu" style="width: 16px; height: 16px;"></i> Predict Performance
     </a>
     <form method="POST" action="{{ url_for('api_clear_data') }}" onsubmit="return confirm('Clear all student records to restart from clean state?');" style="display:inline;">
-      <button type="submit" class="btn btn-outline" title="Reset all records to fresh empty state">
-        <i class="bi bi-arrow-counterclockwise"></i> Reset Data
+      <button type="submit" class="btn btn-outline" title="Reset all records to fresh state">
+        <i data-lucide="rotate-ccw" style="width: 16px; height: 16px;"></i> Reset
       </button>
     </form>
   </div>
 </div>
 
-<!-- 1. Metric Stat Cards -->
+<!-- 1. Metric Stat Cards with Animated Counters -->
 <div class="stats-grid">
   <div class="stat-card">
     <div class="stat-icon primary">
-      <i class="bi bi-people-fill"></i>
+      <i data-lucide="users" style="width: 22px; height: 22px;"></i>
     </div>
     <div>
-      <div class="stat-value">{{ total_students }}</div>
+      <div class="stat-value"><span class="counter" data-target="{{ total_students }}">{{ total_students }}</span></div>
       <div class="stat-label">Total Monitored Students</div>
       <div class="stat-trend trend-up">
-        <i class="bi bi-check-circle"></i> 100% active enrollment
+        <i data-lucide="check-circle" style="width: 12px; height: 12px;"></i> 100% active cohort
       </div>
     </div>
   </div>
 
   <div class="stat-card">
-    <div class="stat-icon teal">
-      <i class="bi bi-graph-up"></i>
+    <div class="stat-icon info">
+      <i data-lucide="trending-up" style="width: 22px; height: 22px;"></i>
     </div>
     <div>
-      <div class="stat-value">{{ avg_score }}%</div>
+      <div class="stat-value"><span class="counter" data-target="{{ avg_score }}">{{ avg_score }}</span>%</div>
       <div class="stat-label">Average Academic Score</div>
       <div class="stat-trend trend-up">
-        <i class="bi bi-arrow-up-right"></i> +2.4% vs last midterm
+        <i data-lucide="arrow-up-right" style="width: 12px; height: 12px;"></i> +2.4% vs midterm
       </div>
     </div>
   </div>
 
   <div class="stat-card">
     <div class="stat-icon success">
-      <i class="bi bi-calendar2-check-fill"></i>
+      <i data-lucide="calendar-check" style="width: 22px; height: 22px;"></i>
     </div>
     <div>
-      <div class="stat-value">{{ avg_attendance }}%</div>
+      <div class="stat-value"><span class="counter" data-target="{{ avg_attendance }}">{{ avg_attendance }}</span>%</div>
       <div class="stat-label">Average Attendance</div>
       <div class="stat-trend {% if avg_attendance >= 75 %}trend-up{% else %}trend-down{% endif %}">
-        <i class="bi bi-shield-check"></i> Department threshold 75%
+        <i data-lucide="shield-check" style="width: 12px; height: 12px;"></i> Dept threshold 75%
       </div>
     </div>
   </div>
 
   <div class="stat-card">
     <div class="stat-icon danger">
-      <i class="bi bi-shield-exclamation"></i>
+      <i data-lucide="alert-triangle" style="width: 22px; height: 22px;"></i>
     </div>
     <div>
-      <div class="stat-value">{{ at_risk_count }}</div>
+      <div class="stat-value" style="color: var(--color-danger);"><span class="counter" data-target="{{ at_risk_count }}">{{ at_risk_count }}</span></div>
       <div class="stat-label">At-Risk Students</div>
       <div class="stat-trend trend-down">
-        <i class="bi bi-exclamation-triangle-fill"></i> Requires intervention
+        <i data-lucide="alert-octagon" style="width: 12px; height: 12px;"></i> Requires intervention
       </div>
     </div>
   </div>
@@ -85,7 +88,10 @@
   <div class="card" style="margin-bottom: 0;">
     <div class="card-header">
       <div>
-        <h3 class="card-title"><i class="bi bi-pie-chart-fill" style="color: var(--color-teal);"></i> Cohort Performance Distribution</h3>
+        <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="pie-chart" style="width: 18px; height: 18px; color: var(--color-secondary);"></i>
+          Cohort Performance Distribution
+        </h3>
         <p class="card-subtitle">Random Forest ML categorization</p>
       </div>
       <span class="badge badge-high">{{ high_count }} High | {{ avg_count }} Avg | {{ at_risk_count }} Risk</span>
@@ -99,7 +105,10 @@
   <div class="card" style="margin-bottom: 0;">
     <div class="card-header">
       <div>
-        <h3 class="card-title"><i class="bi bi-scatter" style="color: var(--color-primary);"></i> Attendance vs Academic Marks</h3>
+        <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="scatter-chart" style="width: 18px; height: 18px; color: var(--color-primary);"></i>
+          Attendance vs Academic Marks
+        </h3>
         <p class="card-subtitle">Correlation between classroom presence and internal score</p>
       </div>
     </div>
@@ -114,7 +123,10 @@
   <div class="card" style="margin-bottom: 0;">
     <div class="card-header">
       <div>
-        <h3 class="card-title"><i class="bi bi-bar-chart-fill" style="color: var(--color-teal);"></i> Subject-Wise Average Performance</h3>
+        <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="bar-chart-2" style="width: 18px; height: 18px; color: var(--color-secondary);"></i>
+          Subject-Wise Average Performance
+        </h3>
         <p class="card-subtitle">Assessment metrics across 5 core subjects</p>
       </div>
     </div>
@@ -127,7 +139,10 @@
   <div class="card" style="margin-bottom: 0;">
     <div class="card-header">
       <div>
-        <h3 class="card-title"><i class="bi bi-activity" style="color: var(--color-primary);"></i> Semester-Wise Performance Trends</h3>
+        <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="activity" style="width: 18px; height: 18px; color: var(--color-primary);"></i>
+          Semester-Wise Performance Trends
+        </h3>
         <p class="card-subtitle">Cohort GPA trajectory from Semester 3 through Semester 7</p>
       </div>
     </div>
@@ -143,8 +158,9 @@
   <div class="card" style="margin-bottom: 0;">
     <div class="card-header">
       <div>
-        <h3 class="card-title" style="color: var(--color-danger);">
-          <i class="bi bi-exclamation-octagon-fill"></i> Students Requiring Immediate Attention
+        <h3 class="card-title" style="color: var(--color-danger); display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="alert-octagon" style="width: 18px; height: 18px;"></i>
+          Students Requiring Immediate Attention
         </h3>
         <p class="card-subtitle">Flagged with High Risk level based on critical attendance or failing internals</p>
       </div>
@@ -198,10 +214,10 @@
           <tr>
             <td colspan="5" style="text-align: center; padding: 28px; color: var(--text-muted);">
               {% if total_students == 0 %}
-                <i class="bi bi-inbox" style="font-size: 1.8rem; display: block; margin-bottom: 6px; opacity: 0.5;"></i>
-                No student records entered yet. Use <strong>"Add Fresh Student"</strong> above to register students and calculate their performance.
+                <i data-lucide="inbox" style="width: 32px; height: 32px; margin: 0 auto 6px; opacity: 0.5;"></i>
+                No student records entered yet. Use <strong>"Add Student"</strong> above to register students and calculate their performance.
               {% else %}
-                <i class="bi bi-shield-check" style="font-size: 1.8rem; display: block; margin-bottom: 6px; color: var(--color-success);"></i>
+                <i data-lucide="shield-check" style="width: 32px; height: 32px; margin: 0 auto 6px; color: var(--color-success);"></i>
                 No high-risk students detected in currently entered records!
               {% endif %}
             </td>
@@ -216,7 +232,10 @@
   <div class="card" style="margin-bottom: 0;">
     <div class="card-header">
       <div>
-        <h3 class="card-title"><i class="bi bi-bell-fill" style="color: var(--color-warning);"></i> Academic Alerts</h3>
+        <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="bell" style="width: 18px; height: 18px; color: var(--color-warning);"></i>
+          Academic Alerts
+        </h3>
         <p class="card-subtitle">Real-time system events</p>
       </div>
       <a href="{{ url_for('notifications') }}" class="btn btn-outline btn-sm">History</a>
@@ -224,30 +243,30 @@
 
     <div style="display: flex; flex-direction: column; gap: 14px;">
       {% for notif in recent_notifs %}
-      <div style="padding: 12px; border-radius: var(--radius-md); background: {% if notif.type == 'alert' %}var(--color-danger-bg){% elif notif.type == 'warning' %}var(--color-warning-bg){% else %}var(--bg-surface-alt){% endif %}; border-left: 3px solid {% if notif.type == 'alert' %}var(--color-danger){% elif notif.type == 'warning' %}var(--color-warning){% else %}var(--color-teal){% endif %};">
+      <div style="padding: 12px; border-radius: var(--radius-md); background: {% if notif.type == 'alert' %}var(--color-danger-bg){% elif notif.type == 'warning' %}var(--color-warning-bg){% else %}var(--bg-surface-alt){% endif %}; border-left: 3px solid {% if notif.type == 'alert' %}var(--color-danger){% elif notif.type == 'warning' %}var(--color-warning){% else %}var(--color-secondary){% endif %};">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
           <span style="font-size: 0.84rem; font-weight: 700; color: var(--text-main);">{{ notif.title }}</span>
           <span style="font-size: 0.72rem; color: var(--text-muted);">{{ notif.time }}</span>
         </div>
-        <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4;">{{ notif.message }}</p>
+        <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; margin: 0;">{{ notif.message }}</p>
       </div>
       {% else %}
       <div style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 0.85rem;">
-        <i class="bi bi-bell-slash" style="font-size: 1.5rem; display: block; margin-bottom: 6px; opacity: 0.5;"></i>
-        No active academic alerts. System is waiting for fresh student records.
+        <i data-lucide="bell-off" style="width: 28px; height: 28px; margin: 0 auto 6px; opacity: 0.5;"></i>
+        No active academic alerts. System is monitoring cohort telemetry.
       </div>
       {% endfor %}
     </div>
   </div>
 </div>
 
-<!-- Modal: Add Student Record (accessible directly from Dashboard) -->
+<!-- Modal: Add Student Record -->
 <div class="modal-backdrop" id="addStudentModal">
   <div class="modal-content">
     <button class="modal-close-btn" onclick="closeModal('addStudentModal')">&times;</button>
     <div style="margin-bottom: 20px;">
-      <h3 style="color: var(--color-primary); font-size: 1.3rem; font-weight: 700;">Add Fresh Student Record</h3>
-      <p style="font-size: 0.85rem; color: var(--text-muted);">Enter student academic data freshly. The Scikit-learn model evaluates performance and risk immediately upon submission.</p>
+      <h3 style="color: var(--text-main); font-size: 1.3rem; font-weight: 700;">Add Fresh Student Record</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">Enter student academic data. The Scikit-learn model evaluates performance and risk immediately upon submission.</p>
     </div>
 
     <form method="POST" action="{{ url_for('api_add_student') }}">
@@ -300,8 +319,40 @@
 
       <div style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
         <button type="button" class="btn btn-outline" onclick="closeModal('addStudentModal')">Cancel</button>
-        <button type="submit" class="btn btn-teal">
-          <i class="bi bi-save"></i> Save & Compute Performance
+        <button type="submit" class="btn btn-primary">
+          <i data-lucide="save" style="width: 16px; height: 16px;"></i> Save & Compute Performance
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Bulk CSV Import -->
+<div class="modal-backdrop" id="bulkImportModal">
+  <div class="modal-content">
+    <button class="modal-close-btn" onclick="closeModal('bulkImportModal')">&times;</button>
+    <div style="margin-bottom: 20px;">
+      <h3 style="color: var(--text-main); font-size: 1.3rem; font-weight: 700;">Bulk CSV Student Import</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">Paste or upload a CSV containing student telemetry (Name, Department, Attendance, Internal Marks, Assignment Completion, etc.). EduPredict will automatically calculate performance categories.</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('api_bulk_import_students') }}" enctype="multipart/form-data">
+      <div class="form-group">
+        <label class="form-label">Select CSV File</label>
+        <input type="file" name="file" class="form-control" accept=".csv">
+      </div>
+
+      <div class="form-group" style="margin-top: 12px;">
+        <label class="form-label">Or Paste CSV Text</label>
+        <textarea name="csv_data" class="form-control" rows="5" placeholder="name,department,attendance,internal_marks,assignment_completion,previous_semester_score,study_hours,participation
+Karan Verma,Computer Science & Engineering,84,79,88,76,4.5,7.0
+Priya Shah,Computer Science & Engineering,56,42,48,50,1.5,3.0"></textarea>
+      </div>
+
+      <div style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" class="btn btn-outline" onclick="closeModal('bulkImportModal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">
+          <i data-lucide="upload" style="width: 16px; height: 16px;"></i> Process & Import Records
         </button>
       </div>
     </form>
@@ -320,7 +371,7 @@ document.addEventListener('DOMContentLoaded', function() {
       labels: ['High Performers', 'Average Performers', 'At-Risk Students'],
       datasets: [{
         data: [{{ high_count }}, {{ avg_count }}, {{ at_risk_count }}],
-        backgroundColor: ['#10b981', '#3b82f6', '#ef4444'],
+        backgroundColor: ['#16A34A', '#2563EB', '#DC2626'],
         borderWidth: 2,
         borderColor: '#ffffff'
       }]
@@ -331,11 +382,11 @@ document.addEventListener('DOMContentLoaded', function() {
       plugins: {
         legend: { position: 'bottom' }
       },
-      cutout: '65%'
+      cutout: '68%'
     }
   });
 
-  // Chart 2: Attendance vs Marks Scatter/Bubble
+  // Chart 2: Attendance vs Marks Scatter
   const attMarksCtx = document.getElementById('attendanceMarksChart').getContext('2d');
   const studentPoints = [
     {% for s in students %}
@@ -349,8 +400,8 @@ document.addEventListener('DOMContentLoaded', function() {
       datasets: [{
         label: 'Student Records',
         data: studentPoints,
-        backgroundColor: '#0d9488',
-        borderColor: '#0f2b48',
+        backgroundColor: '#2563EB',
+        borderColor: '#172554',
         pointRadius: 6,
         pointHoverRadius: 8
       }]
@@ -391,7 +442,7 @@ document.addEventListener('DOMContentLoaded', function() {
       datasets: [{
         label: 'Department Class Average (%)',
         data: [74.5, 76.2, 68.8, 73.1, 75.4],
-        backgroundColor: ['#0f2b48', '#0d9488', '#f59e0b', '#3b82f6', '#8b5cf6'],
+        backgroundColor: ['#172554', '#2563EB', '#F59E0B', '#16A34A', '#8B5CF6'],
         borderRadius: 6
       }]
     },
@@ -414,8 +465,8 @@ document.addEventListener('DOMContentLoaded', function() {
         {
           label: 'Batch Average Score',
           data: [72.4, 73.8, 74.2, 75.6, 76.8],
-          borderColor: '#0d9488',
-          backgroundColor: 'rgba(13, 148, 136, 0.1)',
+          borderColor: '#2563EB',
+          backgroundColor: 'rgba(37, 99, 235, 0.1)',
           fill: true,
           tension: 0.3,
           pointRadius: 5
@@ -423,7 +474,7 @@ document.addEventListener('DOMContentLoaded', function() {
         {
           label: 'Batch Average Attendance',
           data: [81.2, 79.5, 78.8, 77.9, 78.4],
-          borderColor: '#0f2b48',
+          borderColor: '#172554',
           borderDash: [5, 5],
           tension: 0.3,
           pointRadius: 4

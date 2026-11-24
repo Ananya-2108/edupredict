@@ -1,23 +1,31 @@
 {% extends "base.html" %}
 
-{% block title %}Performance Prediction Engine - EduPredict{% endblock %}
-{% block breadcrumb %}Machine Learning Performance Predictor{% endblock %}
+{% block title %}Performance Prediction Engine - EduPredict SaaS{% endblock %}
+{% block breadcrumb %}Predictive ML Analytics & Explainable AI{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title">Student Performance Prediction</h1>
-    <p class="page-subtitle">Interactive predictive engine utilizing Scikit-learn Random Forest model trained on multi-attribute academic telemetry.</p>
+    <h1 class="page-title">Predictive Academic Intelligence</h1>
+    <p class="page-subtitle">Interactive machine learning engine utilizing a production Scikit-learn Random Forest model with multi-attribute academic telemetry and Explainable AI (XAI).</p>
   </div>
   <div class="header-actions">
     {% if is_live_model %}
-      <span class="badge badge-high" style="font-size: 0.85rem; padding: 6px 14px;">
-        <i class="bi bi-cpu-fill"></i> Live Scikit-learn Model Active (91.25% Acc)
+      <span class="badge badge-high" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 0.85rem;">
+        <i data-lucide="cpu" style="width: 14px; height: 14px;"></i> Live Scikit-learn Pipeline (91.25% Acc)
       </span>
     {% else %}
-      <span class="badge badge-warning" style="font-size: 0.85rem; padding: 6px 14px;">
-        <i class="bi bi-info-circle"></i> Heuristic Demonstration Engine
+      <span class="badge badge-warning" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 0.85rem;">
+        <i data-lucide="alert-triangle" style="width: 14px; height: 14px;"></i> Fallback Rule Pipeline
       </span>
+    {% endif %}
+
+    {% if session['user']['role'] in ['faculty', 'admin'] %}
+    <form method="POST" action="{{ url_for('api_retrain_model') }}" style="display: inline;" onsubmit="return confirm('Retrain ML pipeline against current academic dataset?');">
+      <button type="submit" class="btn btn-outline" style="display: inline-flex; align-items: center; gap: 6px;">
+        <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i> Retrain Model
+      </button>
+    </form>
     {% endif %}
   </div>
 </div>
@@ -26,14 +34,18 @@
   <!-- Input Form Card -->
   <div class="card">
     <div class="card-header">
-      <h3 class="card-title"><i class="bi bi-sliders" style="color: var(--color-teal);"></i> Input Academic Parameters</h3>
+      <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+        <i data-lucide="sliders" style="width: 18px; height: 18px; color: var(--color-primary);"></i>
+        Input Academic Parameters
+      </h3>
+      <span style="font-size: 0.78rem; color: var(--text-muted);">Adjust parameters below</span>
     </div>
     
     <form method="POST" action="{{ url_for('performance_prediction') }}">
       <div class="form-group">
         <label class="form-label">Student Name / ID (Optional)</label>
         <div class="input-icon-wrapper">
-          <i class="bi bi-person"></i>
+          <i data-lucide="user" style="width: 16px; height: 16px;"></i>
           <input type="text" name="student_name" class="form-control" placeholder="e.g. Aditi Rao or STU2001" value="{{ inputs.student_name }}">
         </div>
       </div>
@@ -41,7 +53,7 @@
       <div class="form-group">
         <label class="form-label" style="display: flex; justify-content: space-between;">
           <span>Attendance Percentage (%)</span>
-          <span id="attVal" style="color: var(--color-teal); font-weight: 700;">{{ inputs.attendance }}%</span>
+          <span id="attVal" style="color: var(--color-primary); font-weight: 700;">{{ inputs.attendance }}%</span>
         </label>
         <input type="range" class="form-control" name="attendance" id="attRange" min="40" max="100" step="0.5" value="{{ inputs.attendance }}" oninput="document.getElementById('attVal').textContent = this.value + '%'">
       </div>
@@ -49,15 +61,15 @@
       <div class="form-group">
         <label class="form-label" style="display: flex; justify-content: space-between;">
           <span>Internal Assessment Marks (out of 100)</span>
-          <span id="intVal" style="color: var(--color-teal); font-weight: 700;">{{ inputs.internal_marks }}</span>
+          <span id="intVal" style="color: var(--color-primary); font-weight: 700;">{{ inputs.internal_marks }}</span>
         </label>
         <input type="range" class="form-control" name="internal_marks" id="intRange" min="30" max="100" step="0.5" value="{{ inputs.internal_marks }}" oninput="document.getElementById('intVal').textContent = this.value">
       </div>
 
       <div class="form-group">
         <label class="form-label" style="display: flex; justify-content: space-between;">
-          <span>Assignment Completion (%)</span>
-          <span id="asgVal" style="color: var(--color-teal); font-weight: 700;">{{ inputs.assignment_completion }}%</span>
+          <span>Assignment Completion Rate (%)</span>
+          <span id="asgVal" style="color: var(--color-primary); font-weight: 700;">{{ inputs.assignment_completion }}%</span>
         </label>
         <input type="range" class="form-control" name="assignment_completion" id="asgRange" min="30" max="100" step="0.5" value="{{ inputs.assignment_completion }}" oninput="document.getElementById('asgVal').textContent = this.value + '%'">
       </div>
@@ -65,7 +77,7 @@
       <div class="form-group">
         <label class="form-label" style="display: flex; justify-content: space-between;">
           <span>Previous Semester Score (%)</span>
-          <span id="prevVal" style="color: var(--color-teal); font-weight: 700;">{{ inputs.previous_semester_score }}%</span>
+          <span id="prevVal" style="color: var(--color-primary); font-weight: 700;">{{ inputs.previous_semester_score }}%</span>
         </label>
         <input type="range" class="form-control" name="previous_semester_score" id="prevRange" min="35" max="100" step="0.5" value="{{ inputs.previous_semester_score }}" oninput="document.getElementById('prevVal').textContent = this.value + '%'">
       </div>
@@ -82,12 +94,14 @@
       </div>
 
       <div style="margin-top: 14px; display: flex; flex-direction: column; gap: 10px;">
-        <button type="submit" name="save_record" value="0" class="btn btn-teal" style="width: 100%; padding: 12px; font-size: 1rem;">
-          <i class="bi bi-lightning-charge-fill"></i> Predict Performance Only
+        <button type="submit" name="save_record" value="0" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 0.95rem; justify-content: center;">
+          <i data-lucide="zap" style="width: 16px; height: 16px;"></i> Run ML Performance Inference
         </button>
-        <button type="submit" name="save_record" value="1" class="btn btn-primary" style="width: 100%; padding: 11px; font-size: 0.95rem;">
-          <i class="bi bi-person-check-fill"></i> Predict & Save into Student Records
+        {% if session['user']['role'] in ['faculty', 'admin'] %}
+        <button type="submit" name="save_record" value="1" class="btn btn-outline" style="width: 100%; padding: 11px; font-size: 0.92rem; justify-content: center;">
+          <i data-lucide="user-check" style="width: 16px; height: 16px;"></i> Predict & Save into Registry
         </button>
+        {% endif %}
       </div>
 
       <!-- Quick Preset Presets -->
@@ -102,50 +116,65 @@
     </form>
   </div>
 
-  <!-- Prediction Result Card -->
+  <!-- Prediction Result Card & XAI -->
   <div>
     {% if result %}
-    <div class="card" style="border-top: 4px solid {% if result.predicted_category == 'High Performer' %}var(--color-success){% elif result.predicted_category == 'Average Performer' %}var(--color-info){% else %}var(--color-danger){% endif %};">
+    <div class="card" style="border-top: 4px solid {% if result.predicted_category == 'High Performer' %}var(--color-success){% elif result.predicted_category == 'Average Performer' %}var(--color-secondary){% else %}var(--color-danger){% endif %};">
       <div class="card-header">
         <div>
-          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); letter-spacing: 0.5px;">ML Inference Output</span>
+          <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); letter-spacing: 0.5px;">Random Forest Inference Output</span>
           <h3 class="card-title" style="font-size: 1.45rem; margin-top: 2px;">
             {{ result.predicted_category }}
           </h3>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">Subject: {{ result.student_name }}</div>
         </div>
         <div style="text-align: right;">
           <span class="badge {% if result.risk_level == 'High' %}badge-risk-high{% elif result.risk_level == 'Medium' %}badge-risk-med{% else %}badge-risk-low{% endif %}" style="font-size: 0.85rem;">
             {{ result.risk_level }} Academic Risk
           </span>
-          <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">Confidence: {{ result.confidence }}%</div>
+          <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 4px;">Model Confidence: <strong>{{ result.confidence }}%</strong></div>
         </div>
       </div>
 
       <!-- Probability Distribution Bar -->
-      <div style="margin-bottom: 20px;">
-        <div style="font-size: 0.8rem; font-weight: 600; margin-bottom: 6px;">Class Probability Distribution:</div>
+      <div style="margin-bottom: 22px;">
+        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 600; margin-bottom: 6px;">
+          <span>Class Probability Distribution:</span>
+          <span style="color: var(--text-muted); font-size: 0.75rem;">Multi-class Softmax</span>
+        </div>
         <div style="display: flex; height: 16px; border-radius: var(--radius-full); overflow: hidden; background: #e2e8f0;">
           <div style="width: {{ result.prob_high }}%; background: var(--color-success);" title="High Performer: {{ result.prob_high }}%"></div>
-          <div style="width: {{ result.prob_avg }}%; background: var(--color-info);" title="Average Performer: {{ result.prob_avg }}%"></div>
+          <div style="width: {{ result.prob_avg }}%; background: var(--color-secondary);" title="Average Performer: {{ result.prob_avg }}%"></div>
           <div style="width: {{ result.prob_at_risk }}%; background: var(--color-danger);" title="At-Risk: {{ result.prob_at_risk }}%"></div>
         </div>
-        <div style="display: flex; justify-content: space-between; font-size: 0.74rem; color: var(--text-muted); margin-top: 4px;">
-          <span>High: {{ result.prob_high }}%</span>
-          <span>Average: {{ result.prob_avg }}%</span>
-          <span>At-Risk: {{ result.prob_at_risk }}%</span>
+        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+          <span style="display: flex; align-items: center; gap: 4px;"><span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--color-success);"></span> High: {{ result.prob_high }}%</span>
+          <span style="display: flex; align-items: center; gap: 4px;"><span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--color-secondary);"></span> Average: {{ result.prob_avg }}%</span>
+          <span style="display: flex; align-items: center; gap: 4px;"><span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--color-danger);"></span> At-Risk: {{ result.prob_at_risk }}%</span>
         </div>
       </div>
 
-      <!-- Factors Contributing to Prediction -->
-      <div style="margin-bottom: 20px;">
-        <h4 style="font-size: 0.92rem; font-weight: 700; margin-bottom: 10px; color: var(--color-primary);">
-          <i class="bi bi-diagram-3-fill"></i> Contributing Factors
+      <!-- Explainable AI (XAI) Attribution Waterfall -->
+      <div style="margin-bottom: 22px;">
+        <h4 style="font-size: 0.92rem; font-weight: 700; margin-bottom: 10px; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="git-commit" style="width: 16px; height: 16px; color: var(--color-secondary);"></i>
+          Explainable AI (XAI) Feature Attribution Deltas
         </h4>
         <div style="display: flex; flex-direction: column; gap: 8px;">
           {% for f in result.factors %}
-          <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--bg-surface-alt); border-radius: var(--radius-sm); font-size: 0.85rem;">
-            <span><strong>{{ f.factor }}:</strong> {{ f.desc }}</span>
-            <span class="badge {% if f.impact == 'Positive' %}badge-high{% else %}badge-risk{% endif %}">{{ f.impact }}</span>
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg-surface-alt); border-radius: var(--radius-sm); border: 1px solid var(--border-color); font-size: 0.85rem;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: {% if f.impact == 'Positive' %}var(--color-success){% elif f.impact == 'Negative' %}var(--color-danger){% else %}var(--color-warning){% endif %};"></span>
+              <div>
+                <strong>{{ f.factor }}</strong>: {{ f.desc }}
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-family: monospace; font-size: 0.8rem; font-weight: 700; color: {% if f.impact == 'Positive' %}var(--color-success){% elif f.impact == 'Negative' %}var(--color-danger){% else %}var(--text-muted){% endif %};">
+                {{ f.attribution }}
+              </span>
+              <span class="badge {% if f.impact == 'Positive' %}badge-high{% elif f.impact == 'Negative' %}badge-risk{% else %}badge-average{% endif %}">{{ f.impact }}</span>
+            </div>
           </div>
           {% endfor %}
         </div>
@@ -154,7 +183,9 @@
       <!-- Strengths and Weaknesses -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px;">
         <div style="padding: 12px; border: 1px solid #d1fae5; border-radius: var(--radius-md); background: #f0fdf4;">
-          <div style="font-size: 0.82rem; font-weight: 700; color: #065f46; margin-bottom: 6px;">Identified Strengths</div>
+          <div style="font-size: 0.82rem; font-weight: 700; color: #065f46; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="check-circle" style="width: 14px; height: 14px;"></i> Identified Strengths
+          </div>
           <ul style="font-size: 0.8rem; color: #047857; padding-left: 18px; margin: 0;">
             {% for s in result.strengths %}
             <li>{{ s }}</li>
@@ -162,7 +193,9 @@
           </ul>
         </div>
         <div style="padding: 12px; border: 1px solid #fee2e2; border-radius: var(--radius-md); background: #fef2f2;">
-          <div style="font-size: 0.82rem; font-weight: 700; color: #991b1b; margin-bottom: 6px;">Vulnerable Areas</div>
+          <div style="font-size: 0.82rem; font-weight: 700; color: #991b1b; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="alert-circle" style="width: 14px; height: 14px;"></i> Vulnerable Areas
+          </div>
           <ul style="font-size: 0.8rem; color: #b91c1c; padding-left: 18px; margin: 0;">
             {% for w in result.weaknesses %}
             <li>{{ w }}</li>
@@ -171,30 +204,52 @@
         </div>
       </div>
 
-      <!-- Personalized Recommendations & Faculty Action -->
+      <!-- Recommendations -->
       <div style="border-top: 1px solid var(--border-color); padding-top: 16px;">
-        <h4 style="font-size: 0.92rem; font-weight: 700; margin-bottom: 10px; color: var(--color-teal);">
-          <i class="bi bi-lightbulb"></i> Actionable Learning Recommendations
+        <h4 style="font-size: 0.92rem; font-weight: 700; margin-bottom: 10px; color: var(--color-primary); display: flex; align-items: center; gap: 6px;">
+          <i data-lucide="lightbulb" style="width: 16px; height: 16px;"></i> Actionable Learning Recommendation
         </h4>
-        <ul style="font-size: 0.84rem; color: var(--text-main); margin-bottom: 16px; padding-left: 18px;">
+        <ul style="font-size: 0.84rem; color: var(--text-main); margin-bottom: 12px; padding-left: 18px;">
           {% for r in result.recommendations %}
           <li style="margin-bottom: 4px;">{{ r }}</li>
           {% endfor %}
         </ul>
-
-        <div style="padding: 12px; background: rgba(13, 148, 136, 0.08); border-left: 3px solid var(--color-teal); border-radius: var(--radius-sm); font-size: 0.85rem;">
-          <strong>Suggested Faculty Support:</strong> {{ result.suggested_faculty }}
-        </div>
       </div>
     </div>
     {% else %}
     <!-- Empty State -->
     <div class="card" style="text-align: center; padding: 60px 24px;">
-      <i class="bi bi-cpu" style="font-size: 3.5rem; color: var(--color-teal); opacity: 0.5;"></i>
-      <h3 style="margin-top: 16px; color: var(--color-primary); font-size: 1.25rem;">Awaiting Academic Parameters</h3>
+      <i data-lucide="cpu" style="width: 54px; height: 54px; color: var(--color-secondary); margin: 0 auto; opacity: 0.4;"></i>
+      <h3 style="margin-top: 16px; color: var(--text-main); font-size: 1.25rem;">Awaiting Academic Parameters</h3>
       <p style="color: var(--text-muted); font-size: 0.88rem; max-width: 380px; margin: 8px auto 20px;">
-        Adjust the attendance, internal assessments, and study metrics on the left, then click <strong>Predict Performance</strong>.
+        Adjust attendance, assessments, and study metrics on the left, then click <strong>Run ML Performance Inference</strong>.
       </p>
+    </div>
+    {% endif %}
+
+    <!-- Feature Importance Ranking -->
+    {% if feature_importances %}
+    <div class="card" style="margin-top: 24px;">
+      <div class="card-header">
+        <h3 class="card-title" style="font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="bar-chart-2" style="width: 16px; height: 16px; color: var(--color-secondary);"></i>
+          Random Forest Gini Feature Importances
+        </h3>
+        <span style="font-size: 0.75rem; color: var(--text-muted);">Trained Weights</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px; padding: 6px 0;">
+        {% for feat in feature_importances %}
+        <div>
+          <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px;">
+            <span style="font-weight: 600;">{{ feat.feature }}</span>
+            <span style="color: var(--color-secondary); font-weight: 700;">{{ feat.pct }}%</span>
+          </div>
+          <div style="height: 8px; border-radius: var(--radius-full); background: #e2e8f0; overflow: hidden;">
+            <div style="height: 100%; width: {{ feat.pct * 2.8 }}%; background: var(--color-secondary); border-radius: var(--radius-full);"></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
     </div>
     {% endif %}
 
@@ -202,9 +257,11 @@
     {% if ml_eval_metrics %}
     <div class="card" style="margin-top: 24px;">
       <div class="card-header">
-        <h3 class="card-title" style="font-size: 0.95rem;">
-          <i class="bi bi-check2-all" style="color: var(--color-success);"></i> Algorithm Benchmark & Evaluation Matrix
+        <h3 class="card-title" style="font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="check-circle" style="width: 16px; height: 16px; color: var(--color-success);"></i>
+          Algorithm Benchmark & Evaluation Matrix
         </h3>
+        <span class="badge badge-high">Scikit-learn 80/20 Stratified</span>
       </div>
       <div class="table-container">
         <table class="table" style="font-size: 0.82rem;">
@@ -219,8 +276,11 @@
           </thead>
           <tbody>
             {% for name, metrics in ml_eval_metrics.items() %}
-            <tr {% if name == 'Random Forest' %}style="background: rgba(13, 148, 136, 0.05); font-weight: 600;"{% endif %}>
-              <td>{{ name }} {% if name == 'Random Forest' %}<span class="badge badge-high">Active Model</span>{% endif %}</td>
+            <tr {% if name == 'Random Forest' %}style="background: rgba(37, 99, 235, 0.05); font-weight: 600;"{% endif %}>
+              <td>
+                {{ name }}
+                {% if name == 'Random Forest' %}<span class="badge badge-high" style="margin-left: 6px;">Production Model</span>{% endif %}
+              </td>
               <td>{{ metrics.accuracy }}%</td>
               <td>{{ metrics.precision }}%</td>
               <td>{{ metrics.recall }}%</td>
@@ -234,6 +294,57 @@
     {% endif %}
   </div>
 </div>
+
+<!-- Prediction Telemetry History -->
+{% if prediction_history %}
+<div class="card" style="margin-top: 24px;">
+  <div class="card-header">
+    <h3 class="card-title" style="font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
+      <i data-lucide="history" style="width: 16px; height: 16px; color: var(--color-primary);"></i>
+      Interactive Session Prediction Log
+    </h3>
+    <span style="font-size: 0.78rem; color: var(--text-muted);">Last {{ prediction_history|length }} runs recorded</span>
+  </div>
+  <div class="table-container">
+    <table class="table" style="font-size: 0.82rem;">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Student Name</th>
+          <th>Attendance</th>
+          <th>Internals</th>
+          <th>Assignments</th>
+          <th>Predicted Category</th>
+          <th>Risk Level</th>
+          <th>Confidence</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in prediction_history %}
+        <tr>
+          <td style="color: var(--text-muted); font-size: 0.76rem;">{{ p.timestamp }}</td>
+          <td style="font-weight: 600;">{{ p.student_name }}</td>
+          <td>{{ p.attendance }}%</td>
+          <td>{{ p.internal_marks }}/100</td>
+          <td>{{ p.assignment_completion }}%</td>
+          <td>
+            <span class="badge {% if p.predicted_category == 'High Performer' %}badge-high{% elif p.predicted_category == 'Average Performer' %}badge-average{% else %}badge-risk{% endif %}">
+              {{ p.predicted_category }}
+            </span>
+          </td>
+          <td>
+            <span class="badge {% if p.risk_level == 'High' %}badge-risk-high{% elif p.risk_level == 'Medium' %}badge-risk-med{% else %}badge-risk-low{% endif %}">
+              {{ p.risk_level }}
+            </span>
+          </td>
+          <td><strong>{{ p.confidence }}%</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}

@@ -1,20 +1,30 @@
 {% extends "base.html" %}
 
-{% block title %}Academic Records & Assignments - EduPredict{% endblock %}
+{% block title %}Academic Records & Assignments - EduPredict SaaS{% endblock %}
 {% block breadcrumb %}Curricular Records & Continuous Assessments{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title">Academic Records & Assignment Tracking</h1>
+    <h1 class="page-title">Academic Records & Continuous Assessment</h1>
     <p class="page-subtitle">Subject-wise internal assessments, assignment milestones, and semester progress tracking.</p>
   </div>
+  {% if session['user']['role'] in ['faculty', 'admin'] %}
+  <div class="header-actions">
+    <a href="{{ url_for('export_csv') }}" class="btn btn-outline" style="display: inline-flex; align-items: center; gap: 6px;">
+      <i data-lucide="download" style="width: 14px; height: 14px;"></i> Export Records CSV
+    </a>
+  </div>
+  {% endif %}
 </div>
 
 <!-- Assignments Deadlines & Status Row -->
 <div class="card">
   <div class="card-header">
-    <h3 class="card-title"><i class="bi bi-journal-text" style="color: var(--color-teal);"></i> Department Assessment Milestones</h3>
+    <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+      <i data-lucide="book-open" style="width: 18px; height: 18px; color: var(--color-secondary);"></i>
+      Department Assessment Milestones
+    </h3>
     <span class="badge badge-average">5 Core Assessment Units</span>
   </div>
   <div class="table-container">
@@ -31,7 +41,7 @@
       <tbody>
         {% for a in assignments %}
         <tr>
-          <td style="font-weight: 600; color: var(--color-primary);">{{ a.title }}</td>
+          <td style="font-weight: 600; color: var(--text-main);">{{ a.title }}</td>
           <td><span class="badge badge-average">{{ a.subject }}</span></td>
           <td><span style="font-size: 0.85rem; color: var(--text-muted);">{{ a.due_date }}</span></td>
           <td>
@@ -54,9 +64,12 @@
 </div>
 
 <!-- Student-wise Subject Score Matrix -->
-<div class="card" style="padding: 0; overflow: hidden;">
+<div class="card" style="padding: 0; overflow: hidden; margin-top: 24px;">
   <div class="card-header" style="padding: 18px 24px 0;">
-    <h3 class="card-title"><i class="bi bi-grid-3x3" style="color: var(--color-primary);"></i> Student Subject Assessment Matrix</h3>
+    <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+      <i data-lucide="grid" style="width: 18px; height: 18px; color: var(--color-primary);"></i>
+      Student Subject Assessment Matrix
+    </h3>
   </div>
   <div class="table-container">
     <table class="table">
@@ -94,7 +107,7 @@
         {% else %}
         <tr>
           <td colspan="7" style="text-align: center; padding: 36px; color: var(--text-muted);">
-            <i class="bi bi-journal-x" style="font-size: 2rem; display: block; margin-bottom: 8px; opacity: 0.5;"></i>
+            <i data-lucide="file-x" style="width: 36px; height: 36px; margin: 0 auto 8px; opacity: 0.5;"></i>
             No academic marks registered yet. Add a student to track subject-wise assessment marks.
           </td>
         </tr>

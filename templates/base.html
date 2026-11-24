@@ -37,13 +37,42 @@
       </div>
 
       <nav class="sidebar-nav">
-        {% if current_user.role == 'faculty' %}
-          <div class="nav-section-title">Faculty Portal</div>
+        {% if current_user.role == 'admin' %}
+          <!-- Administrator Role Menu -->
+          <div class="nav-section-title">Institutional Admin</div>
+          <a href="{{ url_for('admin_dashboard') }}" class="nav-link {% if active_page == 'admin' %}active{% endif %}">
+            <i class="bi bi-shield-lock-fill"></i> <span>Admin Control Center</span>
+          </a>
           <a href="{{ url_for('faculty_dashboard') }}" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}">
-            <i class="bi bi-speedometer2"></i> <span>Dashboard</span>
+            <i class="bi bi-speedometer2"></i> <span>Cohort Analytics</span>
           </a>
           <a href="{{ url_for('student_management') }}" class="nav-link {% if active_page == 'students' %}active{% endif %}">
-            <i class="bi bi-people-fill"></i> <span>Students</span>
+            <i class="bi bi-people-fill"></i> <span>All Students</span>
+          </a>
+          <a href="{{ url_for('attendance_management') }}" class="nav-link {% if active_page == 'attendance' %}active{% endif %}">
+            <i class="bi bi-calendar2-check-fill"></i> <span>Attendance</span>
+          </a>
+          <a href="{{ url_for('academic_records') }}" class="nav-link {% if active_page == 'academic_records' %}active{% endif %}">
+            <i class="bi bi-journal-bookmark-fill"></i> <span>Academic Records</span>
+          </a>
+          <a href="{{ url_for('at_risk_students') }}" class="nav-link {% if active_page == 'at_risk' %}active{% endif %}">
+            <i class="bi bi-shield-exclamation"></i> <span>At-Risk Triage</span>
+          </a>
+          <a href="{{ url_for('reports_analytics') }}" class="nav-link {% if active_page == 'reports' %}active{% endif %}">
+            <i class="bi bi-bar-chart-line-fill"></i> <span>Audits & Reports</span>
+          </a>
+          <a href="{{ url_for('profile_settings') }}" class="nav-link {% if active_page == 'profile' %}active{% endif %}">
+            <i class="bi bi-gear-fill"></i> <span>Settings</span>
+          </a>
+
+        {% elif current_user.role == 'faculty' %}
+          <!-- Faculty Role Menu -->
+          <div class="nav-section-title">Faculty Portal</div>
+          <a href="{{ url_for('faculty_dashboard') }}" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}">
+            <i class="bi bi-speedometer2"></i> <span>Department Dashboard</span>
+          </a>
+          <a href="{{ url_for('student_management') }}" class="nav-link {% if active_page == 'students' %}active{% endif %}">
+            <i class="bi bi-people-fill"></i> <span>My Students</span>
           </a>
           <a href="{{ url_for('attendance_management') }}" class="nav-link {% if active_page == 'attendance' %}active{% endif %}">
             <i class="bi bi-calendar2-check-fill"></i> <span>Attendance</span>
@@ -54,7 +83,7 @@
 
           <div class="nav-section-title">AI & Intervention</div>
           <a href="{{ url_for('performance_prediction') }}" class="nav-link {% if active_page == 'prediction' %}active{% endif %}">
-            <i class="bi bi-cpu-fill"></i> <span>Performance Prediction</span>
+            <i class="bi bi-cpu-fill"></i> <span>ML Predictor</span>
           </a>
           <a href="{{ url_for('at_risk_students') }}" class="nav-link {% if active_page == 'at_risk' %}active{% endif %}">
             <i class="bi bi-shield-exclamation"></i> <span>At-Risk Students</span>
@@ -68,10 +97,10 @@
 
           <div class="nav-section-title">Insights & System</div>
           <a href="{{ url_for('goals_progress') }}" class="nav-link {% if active_page == 'goals' %}active{% endif %}">
-            <i class="bi bi-bullseye"></i> <span>Goals and Progress</span>
+            <i class="bi bi-bullseye"></i> <span>Student Targets</span>
           </a>
           <a href="{{ url_for('reports_analytics') }}" class="nav-link {% if active_page == 'reports' %}active{% endif %}">
-            <i class="bi bi-bar-chart-line-fill"></i> <span>Reports & Analytics</span>
+            <i class="bi bi-bar-chart-line-fill"></i> <span>Reports & Export</span>
           </a>
           <a href="{{ url_for('notifications') }}" class="nav-link {% if active_page == 'notifications' %}active{% endif %}">
             <i class="bi bi-bell-fill"></i> <span>Notifications</span>
@@ -82,8 +111,9 @@
           <a href="{{ url_for('profile_settings') }}" class="nav-link {% if active_page == 'profile' %}active{% endif %}">
             <i class="bi bi-gear-fill"></i> <span>Profile & Settings</span>
           </a>
+
         {% else %}
-          <!-- Student Role Menu -->
+          <!-- Student Role Menu (Isolated to Student's own resources) -->
           <div class="nav-section-title">Student Portal</div>
           <a href="{{ url_for('student_dashboard') }}" class="nav-link {% if active_page == 'student_dashboard' %}active{% endif %}">
             <i class="bi bi-person-workspace"></i> <span>My Dashboard</span>
@@ -118,13 +148,13 @@
       <div class="sidebar-footer">
         <div class="user-quick-profile">
           <div class="user-avatar">
-            {{ current_user.full_name[:2].upper() }}
+            {{ current_user.full_name[:2].upper() if current_user.full_name else 'EP' }}
           </div>
           <div class="user-info">
             <div class="user-name">{{ current_user.full_name }}</div>
-            <div class="user-role-tag">{{ current_user.role }}</div>
+            <div class="user-role-tag">{{ current_user.role|capitalize }}</div>
           </div>
-          <a href="{{ url_for('logout') }}" title="Logout" style="color: rgba(255,255,255,0.6); font-size: 1.1rem;">
+          <a href="{{ url_for('logout') }}" title="Logout" style="color: rgba(255,255,255,0.6); font-size: 1.1rem; padding: 4px;">
             <i class="bi bi-box-arrow-right"></i>
           </a>
         </div>
@@ -146,15 +176,12 @@
         </div>
 
         <div class="topbar-right">
-          <!-- Role Switcher -->
-          <div class="role-switcher-pill">
-            <a href="{{ url_for('switch_role', role='faculty') }}" class="role-btn {% if current_user.role == 'faculty' %}active{% endif %}">
-              Faculty View
-            </a>
-            <a href="{{ url_for('switch_role', role='student') }}" class="role-btn {% if current_user.role == 'student' %}active{% endif %}">
-              Student View
-            </a>
-          </div>
+          <!-- Department Tag for Faculty/Staff -->
+          {% if current_user.department %}
+            <span style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted); background: var(--bg-surface-alt); padding: 5px 12px; border-radius: var(--radius-full); border: 1px solid var(--border-color);">
+              <i class="bi bi-building"></i> {{ current_user.department }}
+            </span>
+          {% endif %}
 
           <!-- Notification Bell -->
           <a href="{{ url_for('notifications') }}" class="topbar-action-btn" title="View Notifications">
@@ -167,6 +194,11 @@
           <!-- Profile Link -->
           <a href="{{ url_for('profile_settings') }}" class="topbar-action-btn" title="Account Settings">
             <i class="bi bi-person-gear"></i>
+          </a>
+
+          <!-- Logout Link -->
+          <a href="{{ url_for('logout') }}" class="topbar-action-btn" title="Sign Out" style="color: var(--color-danger);">
+            <i class="bi bi-power"></i>
           </a>
         </div>
       </header>

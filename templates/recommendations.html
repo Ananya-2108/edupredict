@@ -1,20 +1,62 @@
 {% extends "base.html" %}
 
-{% block title %}Personalized Learning Recommendations - EduPredict{% endblock %}
-{% block breadcrumb %}Adaptive Learning Recommendations{% endblock %}
+{% block title %}Personalized Learning Recommendations - EduPredict SaaS{% endblock %}
+{% block breadcrumb %}Personalized Learning Recommendations & Study Planner{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title">Personalized Learning Recommendations</h1>
-    <p class="page-subtitle">Targeted revision schedules, attendance recovery plans, and faculty mentoring tasks tailored to individual performance deficits.</p>
+    <h1 class="page-title">Personalized Learning & Study Planner</h1>
+    <p class="page-subtitle">Targeted revision milestones, attendance recovery tasks, and intelligent adaptive study plans tailored to specific academic needs.</p>
   </div>
   <div class="header-actions">
-    <button class="btn btn-teal" onclick="openModal('addRecModal')">
-      <i class="bi bi-plus-circle"></i> Create New Recommendation
+    {% if session['user']['role'] in ['faculty', 'admin'] %}
+    <button class="btn btn-primary" onclick="openModal('addRecModal')">
+      <i data-lucide="plus-circle" style="width: 16px; height: 16px;"></i> Create Recommendation
     </button>
+    {% endif %}
   </div>
 </div>
+
+{% if session['user']['role'] == 'student' and study_plan %}
+<!-- Student Personalized Weekly Study Planner -->
+<div class="card" style="margin-bottom: 24px; border-top: 3px solid var(--color-secondary);">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+        <i data-lucide="calendar" style="width: 18px; height: 18px; color: var(--color-secondary);"></i>
+        My Adaptive Weekly Study Schedule
+      </h3>
+      <p class="card-subtitle">AI-generated task milestones based on your current semester syllabus and assessment targets.</p>
+    </div>
+    <span class="badge badge-high">{{ study_plan|length }} Active Milestones</span>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    {% for task in study_plan %}
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--bg-surface-alt); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <input type="checkbox" id="task-{{ task.id }}" {% if task.completed %}checked{% endif %} onchange="toggleTaskStatus({{ task.id }}, this)" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--color-secondary);">
+        <div>
+          <span style="font-size: 0.76rem; font-weight: 700; color: var(--color-secondary); text-transform: uppercase;">{{ task.day }} • {{ task.subject }}</span>
+          <div style="font-weight: 600; font-size: 0.9rem; color: var(--text-main); {% if task.completed %}text-decoration: line-through; opacity: 0.6;{% endif %}" id="task-text-{{ task.id }}">
+            {{ task.topic }}
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <span style="font-size: 0.8rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 4px;">
+          <i data-lucide="clock" style="width: 14px; height: 14px;"></i> {{ task.duration_hrs }} hrs
+        </span>
+        <span class="badge {% if task.completed %}badge-high{% else %}badge-average{% endif %}" id="task-badge-{{ task.id }}">
+          {% if task.completed %}Completed{% else %}Pending{% endif %}
+        </span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
 
 <!-- Filters Row -->
 <div class="card" style="padding: 16px 20px;">
@@ -40,7 +82,9 @@
     </div>
 
     <div>
-      <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Apply Filter</button>
+      <button type="submit" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 6px;">
+        <i data-lucide="filter" style="width: 14px; height: 14px;"></i> Apply Filter
+      </button>
       <a href="{{ url_for('recommendations') }}" class="btn btn-outline">Reset</a>
     </div>
   </form>
@@ -64,13 +108,13 @@
         {% for rec in recommendations %}
         <tr>
           <td>
-            <div style="font-weight: 700; color: var(--color-primary);">{{ rec.student_name }}</div>
+            <div style="font-weight: 700; color: var(--text-main);">{{ rec.student_name }}</div>
             <div style="font-size: 0.75rem; color: var(--text-muted);">{{ rec.id }} • {{ rec.student_id }}</div>
           </td>
           <td>
             <span class="badge badge-average">{{ rec.category }}</span>
           </td>
-          <td style="max-width: 320px;">
+          <td style="max-width: 340px;">
             <p style="margin: 0; font-size: 0.85rem; line-height: 1.4;">{{ rec.description }}</p>
             <span style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 4px;">Assigned: {{ rec.date }}</span>
           </td>
@@ -97,6 +141,7 @@
         {% else %}
         <tr>
           <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
+            <i data-lucide="check-circle" style="width: 32px; height: 32px; margin: 0 auto 8px; opacity: 0.5;"></i>
             No recommendations matching filter.
           </td>
         </tr>
@@ -106,11 +151,12 @@
   </div>
 </div>
 
+{% if session['user']['role'] in ['faculty', 'admin'] %}
 <!-- Modal: Add Recommendation -->
 <div class="modal-backdrop" id="addRecModal">
   <div class="modal-content">
     <button class="modal-close-btn" onclick="closeModal('addRecModal')">&times;</button>
-    <h3 style="color: var(--color-primary); margin-bottom: 6px; font-weight: 700;">Create Learning Recommendation</h3>
+    <h3 style="color: var(--text-main); margin-bottom: 6px; font-weight: 700;">Create Learning Recommendation</h3>
     <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">Assign an academic recovery or enrichment plan to a student.</p>
 
     <form method="POST" action="{{ url_for('api_add_recommendation') }}">
@@ -151,9 +197,41 @@
 
       <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px;">
         <button type="button" class="btn btn-outline" onclick="closeModal('addRecModal')">Cancel</button>
-        <button type="submit" class="btn btn-teal">Create Recommendation</button>
+        <button type="submit" class="btn btn-primary">Create Recommendation</button>
       </div>
     </form>
   </div>
 </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleTaskStatus(taskId, checkbox) {
+  fetch(`/api/study-plan/${taskId}/toggle`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      const textEl = document.getElementById(`task-text-${taskId}`);
+      const badgeEl = document.getElementById(`task-badge-${taskId}`);
+      if (data.task.completed) {
+        textEl.style.textDecoration = 'line-through';
+        textEl.style.opacity = '0.6';
+        badgeEl.textContent = 'Completed';
+        badgeEl.className = 'badge badge-high';
+        if (typeof showToast === 'function') showToast('Milestone completed! Keep up the momentum.', 'success');
+      } else {
+        textEl.style.textDecoration = 'none';
+        textEl.style.opacity = '1.0';
+        badgeEl.textContent = 'Pending';
+        badgeEl.className = 'badge badge-average';
+      }
+    }
+  })
+  .catch(err => console.error('Error toggling task:', err));
+}
+</script>
 {% endblock %}
