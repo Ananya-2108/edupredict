@@ -273,5 +273,17 @@ class TestEduPredictSecurityRBAC(unittest.TestCase):
         self.assertEqual(pdf_res.mimetype, 'application/pdf')
         self.assertTrue(pdf_res.data.startswith(b'%PDF'))
 
+    # ---------------------------------------------------------------
+    # Scenario 14: Faculty view Academic Management System page
+    # ---------------------------------------------------------------
+    def test_14_faculty_view_academic_records_page(self):
+        self.login("faculty_ananya", "password123")
+        res = self.client.get('/academic-records')
+        self.assertEqual(res.status_code, 200)
+        content = res.get_data(as_text=True)
+        self.assertIn("Academic Management System", content)
+        self.assertIn("CS701", content)
+        self.assertIn("Priya Nair", content)
+
 if __name__ == '__main__':
     unittest.main()

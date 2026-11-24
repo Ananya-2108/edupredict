@@ -424,9 +424,11 @@ def log_audit(user_id, username, role, action, resource, status, details=""):
 # Student Data Isolation Query Helpers
 # ===================================================================
 
-def get_all_students():
-    """Returns all student records (for authorized admin/faculty)."""
-    return STUDENTS_DATA
+def get_all_students(department=None):
+    """Returns all student records (for authorized admin/faculty), optionally filtered by department."""
+    if not department:
+        return STUDENTS_DATA
+    return [s for s in STUDENTS_DATA if s.get("department", "").strip().lower() == department.strip().lower()]
 
 def get_students_for_faculty(department=None):
     """Returns students filtered by the faculty member's authorized department."""
