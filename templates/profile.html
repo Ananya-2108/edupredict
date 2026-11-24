@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Profile & Settings - EduPredict{% endblock %}
+{% block breadcrumb %}Account Settings & System Configuration{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Profile & Preferences</h1>
+    <p class="page-subtitle">Manage personal credentials, role preferences, notifications, and application security parameters.</p>
+  </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+  <!-- Profile Info Card -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title"><i class="bi bi-person-badge-fill" style="color: var(--color-teal);"></i> Personal Details</h3>
+    </div>
+
+    <form method="POST" action="{{ url_for('profile_settings') }}">
+      <input type="hidden" name="action" value="update_profile">
+      
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input type="text" name="full_name" class="form-control" value="{{ current_user.full_name }}" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input type="email" name="email" class="form-control" value="{{ current_user.email }}" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Current Role</label>
+        <input type="text" class="form-control" value="{{ current_user.role|capitalize }}" readonly style="background: var(--bg-surface-alt);">
+      </div>
+
+      <div style="margin-top: 20px;">
+        <button type="submit" class="btn btn-primary">Save Profile Changes</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Security & Password -->
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title"><i class="bi bi-shield-lock-fill" style="color: var(--color-primary);"></i> Security & Password</h3>
+    </div>
+
+    <form method="POST" action="{{ url_for('profile_settings') }}">
+      <input type="hidden" name="action" value="change_password">
+
+      <div class="form-group">
+        <label class="form-label">Current Password</label>
+        <div class="input-icon-wrapper">
+          <i class="bi bi-key-fill"></i>
+          <input type="password" name="curr_pwd" class="form-control" placeholder="••••••••" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">New Password</label>
+        <div class="input-icon-wrapper">
+          <i class="bi bi-lock-fill"></i>
+          <input type="password" name="new_pwd" class="form-control" placeholder="••••••••" required>
+        </div>
+      </div>
+
+      <div style="margin-top: 20px;">
+        <button type="submit" class="btn btn-teal">Update Password</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

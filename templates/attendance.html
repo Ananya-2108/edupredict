@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance Management - EduPredict{% endblock %}
+{% block breadcrumb %}Attendance Audits & Telemetry{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Attendance Tracking & Alerts</h1>
+    <p class="page-subtitle">Continuous attendance rate auditing, low attendance flag identification, and correlation against examination performance.</p>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-teal" onclick="openModal('quickAttendanceModal')">
+      <i class="bi bi-pencil-square"></i> Update Student Attendance
+    </button>
+  </div>
+</div>
+
+<!-- Attendance Highlights -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon primary">
+      <i class="bi bi-calendar2-range-fill"></i>
+    </div>
+    <div>
+      <div class="stat-value">{{ avg_att }}%</div>
+      <div class="stat-label">Batch Average Attendance</div>
+      <div class="stat-trend trend-up">
+        Standard norm 75%
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon warning">
+      <i class="bi bi-exclamation-triangle"></i>
+    </div>
+    <div>
+      <div class="stat-value">{{ low_att_students|length }}</div>
+      <div class="stat-label">Below Threshold (&lt; 75%)</div>
+      <div class="stat-trend trend-down">
+        Risk of university exam hall ticket withhold
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon danger">
+      <i class="bi bi-shield-x"></i>
+    </div>
+    <div>
+      <div class="stat-value">{{ crit_att_students|length }}</div>
+      <div class="stat-label">Critical Attendance (&lt; 65%)</div>
+      <div class="stat-trend trend-down">
+        Immediate detention alert active
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Attendance Trend Chart -->
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><i class="bi bi-graph-up" style="color: var(--color-teal);"></i> 6-Week Attendance Trajectory</h3>
+    <span class="badge badge-high">Live Department Tracking</span>
+  </div>
+  <div style="height: 250px;">
+    <canvas id="attendanceLineChart"></canvas>
+  </div>
+</div>
+
+<!-- Detailed Student Attendance Table -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div class="card-header" style="padding: 16px 20px 0;">
+    <h3 class="card-title"><i class="bi bi-table" style="color: var(--color-primary);"></i> Enrolled Students Attendance Register</h3>
+  </div>
+  <div class="table-container">
+    <table class="table filterable-table">
+      <thead>
+        <tr>
+          <th>Student Details</th>
+          <th>Attendance Rate</th>
+          <th>Status</th>
+          <th>Internal Marks</th>
+          <th>Attendance Trend (6 wks)</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in students %}
+        <tr>
+          <td>
+            <div style="font-weight: 600; color: var(--color-primary);">{{ s.name }}</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">{{ s.id }} • Sem {{ s.semester }}</div>
+          </td>
+          <td>
+            <div style="font-weight: 700; font-size: 0.95rem; color: {% if s.attendance < 65 %}var(--color-danger){% elif s.attendance < 75 %}var(--color-warning){% else %}var(--color-success){% endif %};">
+              {{ s.attendance }}%
+            </div>
+            <div class="progress-bar-wrap" style="width: 85px; margin-top: 4px;">
+              <div class="progress-bar-fill {% if s.attendance < 65 %}progress-danger{% elif s.attendance < 75 %}progress-warning{% else %}progress-success{% endif %}" style="width: {{ s.attendance }}%;"></div>
+            </div>
+          </td>
+          <td>
+            {% if s.attendance < 65 %}
+              <span class="badge badge-risk-high">Critical Shortage</span>
+            {% elif s.attendance < 75 %}
+              <span class="badge badge-risk-med">Borderline Warning</span>
+            {% else %}
+              <span class="badge badge-risk-low">Good Standing</span>
+            {% endif %}
+          </td>
+          <td>
+            <span style="font-weight: 600;">{{ s.internal_marks }}/100</span>
+          </td>
+          <td>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">
+              {{ s.attendance_trend | join('%, ') }}%
+            </span>
+          </td>
+          <td>
+            <a href="{{ url_for('student_profile', student_id=s.id) }}" class="btn btn-outline btn-sm">
+              <i class="bi bi-clock-history"></i> Log History
+            </a>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 36px; color: var(--text-muted);">
+            <i class="bi bi-calendar-x" style="font-size: 2rem; display: block; margin-bottom: 8px; opacity: 0.5;"></i>
+            No attendance records yet. Add a student to track and monitor attendance.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal: Quick Update Attendance -->
+<div class="modal-backdrop" id="quickAttendanceModal">
+  <div class="modal-content">
+    <button class="modal-close-btn" onclick="closeModal('quickAttendanceModal')">&times;</button>
+    <h3 style="color: var(--color-primary); margin-bottom: 6px; font-weight: 700;">Update Attendance Percentage</h3>
+    <form method="POST" action="{{ url_for('api_update_attendance') }}">
+      <div class="form-group">
+        <label class="form-label">Select Student</label>
+        <select name="student_id" class="form-control" required>
+          {% for s in students %}
+          <option value="{{ s.id }}">{{ s.name }} (Current: {{ s.attendance }}%)</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">New Attendance Percentage (%)</label>
+        <input type="number" step="0.1" name="attendance" class="form-control" min="0" max="100" required>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px;">
+        <button type="button" class="btn btn-outline" onclick="closeModal('quickAttendanceModal')">Cancel</button>
+        <button type="submit" class="btn btn-teal">Save Updated Attendance</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const lineCtx = document.getElementById('attendanceLineChart').getContext('2d');
+  new Chart(lineCtx, {
+    type: 'line',
+    data: {
+      labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'],
+      datasets: [
+        {
+          label: 'Department Class Average Attendance (%)',
+          data: [82.5, 81.0, 79.4, 78.8, 77.9, 78.4],
+          borderColor: '#0d9488',
+          backgroundColor: 'rgba(13, 148, 136, 0.1)',
+          fill: true,
+          tension: 0.3
+        },
+        {
+          label: 'University Minimum Threshold (75%)',
+          data: [75, 75, 75, 75, 75, 75],
+          borderColor: '#ef4444',
+          borderDash: [6, 4],
+          fill: false,
+          pointRadius: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { min: 60, max: 100 }
+      }
+    }
+  });
+});
+</script>
+{% endblock %}

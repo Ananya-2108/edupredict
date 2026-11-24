@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - EduPredict Academic Intelligence</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body style="background: linear-gradient(135deg, #091a2e 0%, #0f2b48 50%, #1a426e 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;">
+  <div style="background: white; width: 100%; max-width: 440px; border-radius: var(--radius-lg); box-shadow: 0 20px 40px rgba(0,0,0,0.3); padding: 36px 32px;">
+    <!-- Brand Header -->
+    <div style="text-align: center; margin-bottom: 28px;">
+      <div style="width: 52px; height: 52px; background: linear-gradient(135deg, var(--color-teal), var(--color-teal-light)); border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; color: white; font-size: 1.6rem; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);">
+        <i class="bi bi-mortarboard-fill"></i>
+      </div>
+      <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--color-primary); margin: 0;">EduPredict</h2>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Student Performance Prediction & Analytics</p>
+    </div>
+
+    <!-- Flash message -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}" style="font-size: 0.82rem; padding: 10px 14px; margin-bottom: 18px;">
+            <i class="bi bi-info-circle-fill"></i> {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('login') }}">
+      <!-- Role Selector -->
+      <div class="form-group">
+        <label class="form-label">Sign In As</label>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <label style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-md); cursor: pointer; font-size: 0.88rem; font-weight: 600;">
+            <input type="radio" name="role" value="faculty" checked> Faculty / HOD
+          </label>
+          <label style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-md); cursor: pointer; font-size: 0.88rem; font-weight: 600;">
+            <input type="radio" name="role" value="student"> Student
+          </label>
+        </div>
+      </div>
+
+      <!-- Username / ID -->
+      <div class="form-group">
+        <label class="form-label">Username / Student ID</label>
+        <div class="input-icon-wrapper">
+          <i class="bi bi-person"></i>
+          <input type="text" name="username" class="form-control" placeholder="Enter username or Student ID" required>
+        </div>
+      </div>
+
+      <!-- Password -->
+      <div class="form-group">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <label class="form-label" style="margin: 0;">Password</label>
+          <a href="{{ url_for('forgot_password') }}" style="font-size: 0.78rem; color: var(--color-teal); font-weight: 600;">Forgot Password?</a>
+        </div>
+        <div class="input-icon-wrapper" style="margin-top: 6px;">
+          <i class="bi bi-lock"></i>
+          <input type="password" name="password" class="form-control" placeholder="Enter your password" required>
+          <button type="button" class="toggle-password-btn" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-muted);">
+            <i class="bi bi-eye"></i>
+          </button>
+        </div>
+      </div>
+
+      <div style="margin-top: 24px;">
+        <button type="submit" class="btn btn-teal" style="width: 100%; padding: 12px; font-size: 0.95rem;">
+          <i class="bi bi-box-arrow-in-right"></i> Sign In to Portal
+        </button>
+      </div>
+
+      <div style="margin-top: 20px; text-align: center; font-size: 0.82rem; color: var(--text-muted);">
+        Don't have an account? <a href="{{ url_for('register') }}" style="color: var(--color-teal); font-weight: 600;">Register Here</a>
+      </div>
+    </form>
+  </div>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

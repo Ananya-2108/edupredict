@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}My Student Dashboard - EduPredict{% endblock %}
+{% block breadcrumb %}Personal Student Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div style="display: flex; align-items: center; gap: 16px;">
+    <img src="{{ student.avatar }}" alt="{{ student.name }}" style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid var(--color-teal);">
+    <div>
+      <h1 class="page-title">Welcome, {{ student.name }}</h1>
+      <p class="page-subtitle">{{ student.id }} • {{ student.department }} (Semester {{ student.semester }})</p>
+    </div>
+  </div>
+  <div class="header-actions">
+    <a href="{{ url_for('performance_prediction') }}" class="btn btn-teal">
+      <i class="bi bi-cpu"></i> Predict My Performance
+    </a>
+  </div>
+</div>
+
+<!-- Personal Academic Summary Stat Cards -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon {% if student.predicted_category == 'High Performer' %}success{% elif student.predicted_category == 'Average Performer' %}primary{% else %}danger{% endif %}">
+      <i class="bi bi-award-fill"></i>
+    </div>
+    <div>
+      <div class="stat-value" style="font-size: 1.35rem;">{{ student.predicted_category }}</div>
+      <div class="stat-label">Predicted Academic Standing</div>
+      <div class="stat-trend">
+        <span class="badge {% if student.risk_level == 'High' %}badge-risk-high{% elif student.risk_level == 'Medium' %}badge-risk-med{% else %}badge-risk-low{% endif %}">
+          {{ student.risk_level }} Risk
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon teal">
+      <i class="bi bi-calendar2-check-fill"></i>
+    </div>
+    <div>
+      <div class="stat-value">{{ student.attendance }}%</div>
+      <div class="stat-label">My Overall Attendance</div>
+      <div class="stat-trend {% if student.attendance >= 75 %}trend-up{% else %}trend-down{% endif %}">
+        {% if student.attendance >= 75 %}Safe &gt; 75%{% else %}Warning: Below 75%{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon primary">
+      <i class="bi bi-pencil-fill"></i>
+    </div>
+    <div>
+      <div class="stat-value">{{ student.internal_marks }}/100</div>
+      <div class="stat-label">Internal Marks Avg</div>
+      <div class="stat-trend trend-up">
+        Class average: 74.2
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon success">
+      <i class="bi bi-check2-all"></i>
+    </div>
+    <div>
+      <div class="stat-value">{{ student.assignment_completion }}%</div>
+      <div class="stat-label">Assignments Completed</div>
+      <div class="stat-trend">
+        Study: {{ student.study_hours }} hrs/day
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Subject Performance Chart & Recommendations -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+  <div class="card" style="margin-bottom: 0;">
+    <div class="card-header">
+      <h3 class="card-title"><i class="bi bi-bar-chart-fill" style="color: var(--color-teal);"></i> My Subject Scores</h3>
+    </div>
+    <div style="height: 250px;">
+      <canvas id="mySubjectChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Study Plans & Recommendations -->
+  <div class="card" style="margin-bottom: 0;">
+    <div class="card-header">
+      <h3 class="card-title"><i class="bi bi-lightbulb-fill" style="color: var(--color-primary);"></i> My Personalized Learning Plan</h3>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      {% for rec in recommendations %}
+      <div style="padding: 12px; border-radius: var(--radius-sm); background: var(--bg-surface-alt); border-left: 3px solid var(--color-teal);">
+        <div style="display: flex; justify-content: space-between; font-weight: 600; font-size: 0.85rem;">
+          <span>{{ rec.category }}</span>
+          <span class="badge {% if rec.status == 'Completed' %}badge-high{% else %}badge-warning{% endif %}">{{ rec.status }}</span>
+        </div>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">{{ rec.description }}</p>
+      </div>
+      {% else %}
+      <p style="font-size: 0.85rem; color: var(--text-muted);">No assigned study recommendations. Keep up your current pace!</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Active Academic Improvement Goals & Deadlines -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+  <!-- Goals -->
+  <div class="card" style="margin-bottom: 0;">
+    <div class="card-header">
+      <h3 class="card-title"><i class="bi bi-bullseye" style="color: var(--color-teal);"></i> My Academic Targets</h3>
+      <a href="{{ url_for('goals_progress') }}" class="btn btn-outline btn-sm">Manage Goals</a>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      {% for g in goals %}
+      <div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px;">
+          <span>{{ g.goal }}</span>
+          <span>{{ g.progress }}%</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill progress-teal" style="width: {{ g.progress }}%;"></div>
+        </div>
+        <span style="font-size: 0.72rem; color: var(--text-muted);">Target: {{ g.target_date }} ({{ g.status }})</span>
+      </div>
+      {% else %}
+      <p style="font-size: 0.85rem; color: var(--text-muted);">No goals created yet. Visit Goals & Progress to set targets.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Deadlines & Mentoring -->
+  <div class="card" style="margin-bottom: 0;">
+    <div class="card-header">
+      <h3 class="card-title"><i class="bi bi-calendar-event-fill" style="color: var(--color-primary);"></i> Upcoming Deadlines</h3>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      {% for a in assignments[:3] %}
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--bg-surface-alt); border-radius: var(--radius-sm);">
+        <div>
+          <div style="font-size: 0.84rem; font-weight: 600;">{{ a.title }}</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted);">{{ a.subject }} • Due: {{ a.due_date }}</div>
+        </div>
+        <span class="badge {% if a.status == 'Completed' %}badge-high{% else %}badge-warning{% endif %}">
+          {{ a.status }}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const ctx = document.getElementById('mySubjectChart').getContext('2d');
+  const subjects = {{ student.subject_scores.keys() | list | tojson }};
+  const scores = {{ student.subject_scores.values() | list | tojson }};
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: subjects,
+      datasets: [{
+        label: 'My Score (out of 100)',
+        data: scores,
+        backgroundColor: '#0d9488',
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { beginAtZero: true, max: 100 }
+      }
+    }
+  });
+});
+</script>
+{% endblock %}

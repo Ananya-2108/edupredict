@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}At-Risk Student Identification - EduPredict{% endblock %}
+{% block breadcrumb %}Early Academic Intervention & Risk Identification{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">At-Risk Student Identification</h1>
+    <p class="page-subtitle">Pinpoint undergraduate students encountering academic decline, low attendance thresholds, or backlogs before end-of-term examinations.</p>
+  </div>
+  <div class="header-actions">
+    <a href="{{ url_for('interventions') }}" class="btn btn-teal">
+      <i class="bi bi-person-lines-fill"></i> View Intervention Sessions
+    </a>
+  </div>
+</div>
+
+<!-- Risk Category Counters -->
+<div class="stats-grid">
+  <div class="stat-card" style="border-left: 4px solid var(--color-danger);">
+    <div class="stat-icon danger">
+      <i class="bi bi-exclamation-octagon-fill"></i>
+    </div>
+    <div>
+      <div class="stat-value" style="color: var(--color-danger);">{{ high_risk_count }}</div>
+      <div class="stat-label">High Risk (Critical Danger)</div>
+      <div class="stat-trend trend-down">
+        Attendance &lt; 60% or Internals &lt; 45
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-card" style="border-left: 4px solid var(--color-warning);">
+    <div class="stat-icon warning">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+    </div>
+    <div>
+      <div class="stat-value" style="color: #b45309;">{{ med_risk_count }}</div>
+      <div class="stat-label">Medium Risk (Warning)</div>
+      <div class="stat-trend">
+        Attendance 60-74% or Incomplete Tasks
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-card" style="border-left: 4px solid var(--color-success);">
+    <div class="stat-icon success">
+      <i class="bi bi-shield-check"></i>
+    </div>
+    <div>
+      <div class="stat-value" style="color: #047857;">{{ low_risk_count }}</div>
+      <div class="stat-label">Low Risk (Safe Zone)</div>
+      <div class="stat-trend trend-up">
+        Consistent &gt; 75% attendance
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filter Tabs -->
+<div style="display: flex; gap: 10px; margin-bottom: 20px;">
+  <a href="{{ url_for('at_risk_students') }}" class="btn {% if not selected_risk %}btn-primary{% else %}btn-outline{% endif %} btn-sm">
+    All At-Risk Cohort ({{ students|length }})
+  </a>
+  <a href="{{ url_for('at_risk_students', risk='High') }}" class="btn {% if selected_risk == 'High' %}btn-danger{% else %}btn-outline{% endif %} btn-sm">
+    High Risk Only
+  </a>
+  <a href="{{ url_for('at_risk_students', risk='Medium') }}" class="btn {% if selected_risk == 'Medium' %}btn-primary{% else %}btn-outline{% endif %} btn-sm">
+    Medium Risk Only
+  </a>
+</div>
+
+<!-- At-Risk Student Cards Grid -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 20px;">
+  {% for s in students %}
+  <div class="card" style="padding: 20px; border-left: 4px solid {% if s.risk_level == 'High' %}var(--color-danger){% elif s.risk_level == 'Medium' %}var(--color-warning){% else %}var(--color-success){% endif %};">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <img src="{{ s.avatar }}" alt="{{ s.name }}" style="width: 46px; height: 46px; border-radius: 50%; object-fit: cover;">
+        <div>
+          <h4 style="font-size: 1rem; font-weight: 700; color: var(--color-primary); margin: 0;">{{ s.name }}</h4>
+          <span style="font-size: 0.78rem; color: var(--text-muted);">{{ s.id }} • Sem {{ s.semester }}</span>
+        </div>
+      </div>
+      <span class="badge {% if s.risk_level == 'High' %}badge-risk-high{% else %}badge-risk-med{% endif %}">
+        {{ s.risk_level }} Risk
+      </span>
+    </div>
+
+    <!-- Telemetry Row -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; background: var(--bg-surface-alt); padding: 10px; border-radius: var(--radius-sm); margin-bottom: 14px; text-align: center;">
+      <div>
+        <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">ATTENDANCE</div>
+        <div style="font-weight: 700; font-size: 0.95rem; color: {% if s.attendance < 65 %}var(--color-danger){% elif s.attendance < 75 %}var(--color-warning){% else %}var(--color-primary){% endif %};">
+          {{ s.attendance }}%
+        </div>
+      </div>
+      <div>
+        <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">INTERNALS</div>
+        <div style="font-weight: 700; font-size: 0.95rem; color: {% if s.internal_marks < 50 %}var(--color-danger){% else %}var(--color-primary){% endif %};">
+          {{ s.internal_marks }}/100
+        </div>
+      </div>
+      <div>
+        <div style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">TASKS</div>
+        <div style="font-weight: 700; font-size: 0.95rem; color: var(--color-primary);">
+          {{ s.assignment_completion }}%
+        </div>
+      </div>
+    </div>
+
+    <!-- Risk Indicators -->
+    <div style="margin-bottom: 14px;">
+      <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px;">Risk Indicators:</div>
+      <ul style="font-size: 0.8rem; color: var(--text-main); margin: 0; padding-left: 18px; line-height: 1.4;">
+        {% for ind in s.risk_indicators %}
+        <li>{{ ind }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <!-- Suggested Action / Buttons -->
+    <div style="display: flex; gap: 8px; border-top: 1px solid var(--border-color); padding-top: 12px;">
+      <a href="{{ url_for('student_profile', student_id=s.id) }}" class="btn btn-outline btn-sm" style="flex: 1;">
+        <i class="bi bi-file-earmark-person"></i> Full Profile
+      </a>
+      <a href="{{ url_for('interventions') }}" class="btn btn-teal btn-sm" style="flex: 1;">
+        <i class="bi bi-chat-dots"></i> Intervene Now
+      </a>
+    </div>
+  </div>
+  {% else %}
+  <div class="card" style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+    <i class="bi bi-check-circle" style="font-size: 3rem; color: var(--color-success);"></i>
+    <h3 style="margin-top: 10px; color: var(--color-primary);">No At-Risk Students in this filter</h3>
+    <p style="color: var(--text-muted); font-size: 0.88rem;">All student academic indices within acceptable boundaries.</p>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

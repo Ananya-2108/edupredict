@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Academic Records & Assignments - EduPredict{% endblock %}
+{% block breadcrumb %}Curricular Records & Continuous Assessments{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Academic Records & Assignment Tracking</h1>
+    <p class="page-subtitle">Subject-wise internal assessments, assignment milestones, and semester progress tracking.</p>
+  </div>
+</div>
+
+<!-- Assignments Deadlines & Status Row -->
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><i class="bi bi-journal-text" style="color: var(--color-teal);"></i> Department Assessment Milestones</h3>
+    <span class="badge badge-average">5 Core Assessment Units</span>
+  </div>
+  <div class="table-container">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Assignment Title</th>
+          <th>Subject</th>
+          <th>Due Date</th>
+          <th>Batch Completion</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in assignments %}
+        <tr>
+          <td style="font-weight: 600; color: var(--color-primary);">{{ a.title }}</td>
+          <td><span class="badge badge-average">{{ a.subject }}</span></td>
+          <td><span style="font-size: 0.85rem; color: var(--text-muted);">{{ a.due_date }}</span></td>
+          <td>
+            {% if a.status == 'Completed' %}
+              <span style="color: var(--color-success); font-weight: 700;">100% Submitted</span>
+            {% else %}
+              <span style="color: var(--color-warning); font-weight: 700;">82% Submitted</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge {% if a.status == 'Completed' %}badge-high{% else %}badge-warning{% endif %}">
+              {{ a.status }}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Student-wise Subject Score Matrix -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div class="card-header" style="padding: 18px 24px 0;">
+    <h3 class="card-title"><i class="bi bi-grid-3x3" style="color: var(--color-primary);"></i> Student Subject Assessment Matrix</h3>
+  </div>
+  <div class="table-container">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Student</th>
+          <th>Machine Learning</th>
+          <th>Cloud Computing</th>
+          <th>Compiler Design</th>
+          <th>Network Security</th>
+          <th>Big Data</th>
+          <th>Overall Internals</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in students %}
+        <tr>
+          <td>
+            <div style="font-weight: 600;">{{ s.name }}</div>
+            <div style="font-size: 0.74rem; color: var(--text-muted);">{{ s.id }}</div>
+          </td>
+          {% for subj in subjects %}
+          <td>
+            <span style="font-weight: 600; font-size: 0.88rem; color: {% if s.subject_scores[subj] < 50 %}var(--color-danger){% elif s.subject_scores[subj] >= 80 %}var(--color-success){% else %}var(--text-main){% endif %};">
+              {{ s.subject_scores[subj] }}
+            </span>
+          </td>
+          {% endfor %}
+          <td>
+            <span class="badge {% if s.internal_marks >= 80 %}badge-high{% elif s.internal_marks < 50 %}badge-risk-high{% else %}badge-average{% endif %}">
+              {{ s.internal_marks }}/100
+            </span>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 36px; color: var(--text-muted);">
+            <i class="bi bi-journal-x" style="font-size: 2rem; display: block; margin-bottom: 8px; opacity: 0.5;"></i>
+            No academic marks registered yet. Add a student to track subject-wise assessment marks.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Notifications & Alerts - EduPredict{% endblock %}
+{% block breadcrumb %}System Alerts & Academic Notifications{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Notifications & Academic Alerts</h1>
+    <p class="page-subtitle">Low attendance warnings, poor performance flags, overdue assignment alerts, and faculty intervention reminders.</p>
+  </div>
+  <div class="header-actions">
+    <form method="POST" action="{{ url_for('api_mark_all_read') }}">
+      <button type="submit" class="btn btn-outline">
+        <i class="bi bi-check2-all"></i> Mark All as Read
+      </button>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div style="display: flex; flex-direction: column;">
+    {% for notif in notifications %}
+    <div style="padding: 18px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; background: {% if not notif.is_read %}rgba(13, 148, 136, 0.04){% else %}transparent{% endif %};">
+      <div style="display: flex; gap: 16px; align-items: flex-start;">
+        <div class="stat-icon {% if notif.type == 'alert' %}danger{% elif notif.type == 'warning' %}warning{% elif notif.type == 'success' %}success{% else %}primary{% endif %}" style="width: 44px; height: 44px; font-size: 1.2rem; flex-shrink: 0;">
+          {% if notif.type == 'alert' %}
+            <i class="bi bi-exclamation-octagon-fill"></i>
+          {% elif notif.type == 'warning' %}
+            <i class="bi bi-exclamation-triangle-fill"></i>
+          {% elif notif.type == 'success' %}
+            <i class="bi bi-check-circle-fill"></i>
+          {% else %}
+            <i class="bi bi-info-circle-fill"></i>
+          {% endif %}
+        </div>
+        <div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--color-primary); margin: 0;">{{ notif.title }}</h4>
+            {% if not notif.is_read %}
+              <span class="badge badge-risk-high" style="font-size: 0.7rem; padding: 2px 8px;">New</span>
+            {% endif %}
+          </div>
+          <p style="font-size: 0.85rem; color: var(--text-main); margin-top: 4px; line-height: 1.4;">{{ notif.message }}</p>
+          <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 6px;">{{ notif.time }}</span>
+        </div>
+      </div>
+
+      {% if not notif.is_read %}
+      <form method="POST" action="{{ url_for('api_mark_read', notif_id=notif.id) }}">
+        <button type="submit" class="btn btn-outline btn-sm" title="Mark as read">
+          <i class="bi bi-check"></i> Read
+        </button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

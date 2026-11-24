@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Personalized Learning Recommendations - EduPredict{% endblock %}
+{% block breadcrumb %}Adaptive Learning Recommendations{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Personalized Learning Recommendations</h1>
+    <p class="page-subtitle">Targeted revision schedules, attendance recovery plans, and faculty mentoring tasks tailored to individual performance deficits.</p>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-teal" onclick="openModal('addRecModal')">
+      <i class="bi bi-plus-circle"></i> Create New Recommendation
+    </button>
+  </div>
+</div>
+
+<!-- Filters Row -->
+<div class="card" style="padding: 16px 20px;">
+  <form method="GET" action="{{ url_for('recommendations') }}" style="display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap;">
+    <div style="flex: 1; min-width: 180px;">
+      <label class="form-label" style="font-size: 0.78rem;">Filter by Priority</label>
+      <select name="priority" class="form-control">
+        <option value="">All Priorities</option>
+        <option value="High" {% if selected_priority == 'High' %}selected{% endif %}>High Priority</option>
+        <option value="Medium" {% if selected_priority == 'Medium' %}selected{% endif %}>Medium Priority</option>
+        <option value="Low" {% if selected_priority == 'Low' %}selected{% endif %}>Low Priority</option>
+      </select>
+    </div>
+
+    <div style="flex: 1; min-width: 180px;">
+      <label class="form-label" style="font-size: 0.78rem;">Filter by Status</label>
+      <select name="status" class="form-control">
+        <option value="">All Statuses</option>
+        <option value="Pending" {% if selected_status == 'Pending' %}selected{% endif %}>Pending</option>
+        <option value="In Progress" {% if selected_status == 'In Progress' %}selected{% endif %}>In Progress</option>
+        <option value="Completed" {% if selected_status == 'Completed' %}selected{% endif %}>Completed</option>
+      </select>
+    </div>
+
+    <div>
+      <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Apply Filter</button>
+      <a href="{{ url_for('recommendations') }}" class="btn btn-outline">Reset</a>
+    </div>
+  </form>
+</div>
+
+<!-- Recommendations List Table -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div class="table-container">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID & Student</th>
+          <th>Plan Category</th>
+          <th>Recommendation Details</th>
+          <th>Priority</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rec in recommendations %}
+        <tr>
+          <td>
+            <div style="font-weight: 700; color: var(--color-primary);">{{ rec.student_name }}</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">{{ rec.id }} • {{ rec.student_id }}</div>
+          </td>
+          <td>
+            <span class="badge badge-average">{{ rec.category }}</span>
+          </td>
+          <td style="max-width: 320px;">
+            <p style="margin: 0; font-size: 0.85rem; line-height: 1.4;">{{ rec.description }}</p>
+            <span style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 4px;">Assigned: {{ rec.date }}</span>
+          </td>
+          <td>
+            <span class="badge {% if rec.priority == 'High' %}badge-risk-high{% elif rec.priority == 'Medium' %}badge-risk-med{% else %}badge-risk-low{% endif %}">
+              {{ rec.priority }}
+            </span>
+          </td>
+          <td>
+            <span class="badge {% if rec.status == 'Completed' %}badge-high{% elif rec.status == 'In Progress' %}badge-average{% else %}badge-warning{% endif %}">
+              {{ rec.status }}
+            </span>
+          </td>
+          <td>
+            <form method="POST" action="{{ url_for('api_update_rec_status', rec_id=rec.id) }}" style="display: flex; gap: 6px;">
+              <select name="status" class="form-control" style="padding: 4px 8px; font-size: 0.78rem;" onchange="this.form.submit()">
+                <option value="Pending" {% if rec.status == 'Pending' %}selected{% endif %}>Pending</option>
+                <option value="In Progress" {% if rec.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                <option value="Completed" {% if rec.status == 'Completed' %}selected{% endif %}>Completed</option>
+              </select>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
+            No recommendations matching filter.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal: Add Recommendation -->
+<div class="modal-backdrop" id="addRecModal">
+  <div class="modal-content">
+    <button class="modal-close-btn" onclick="closeModal('addRecModal')">&times;</button>
+    <h3 style="color: var(--color-primary); margin-bottom: 6px; font-weight: 700;">Create Learning Recommendation</h3>
+    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px;">Assign an academic recovery or enrichment plan to a student.</p>
+
+    <form method="POST" action="{{ url_for('api_add_recommendation') }}">
+      <div class="form-group">
+        <label class="form-label">Target Student</label>
+        <select name="student_id" class="form-control" required>
+          {% for s in students %}
+          <option value="{{ s.id }}">{{ s.name }} ({{ s.id }} - {{ s.predicted_category }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select name="category" class="form-control" required>
+          <option value="Subject Revision">Subject Revision Plan</option>
+          <option value="Attendance Recovery">Attendance Recovery Plan</option>
+          <option value="Assignment Completion">Assignment Completion Reminder</option>
+          <option value="Practice Exercises">Practice Exercises for Weak Subjects</option>
+          <option value="Faculty Mentoring">Faculty Mentoring Session</option>
+          <option value="Time Management">Time Management Strategy</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Priority</label>
+        <select name="priority" class="form-control">
+          <option value="High">High</option>
+          <option value="Medium" selected>Medium</option>
+          <option value="Low">Low</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Actionable Plan Description</label>
+        <textarea name="description" class="form-control" rows="3" required placeholder="Specify daily milestones, exercise sets, or lab hours required..."></textarea>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px;">
+        <button type="button" class="btn btn-outline" onclick="closeModal('addRecModal')">Cancel</button>
+        <button type="submit" class="btn btn-teal">Create Recommendation</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

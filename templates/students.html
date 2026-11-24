@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}Student Management - EduPredict{% endblock %}
+{% block breadcrumb %}Cohort Registry & Academic Records{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Student Records Management</h1>
+    <p class="page-subtitle">Search, filter, edit, and inspect performance profiles for all enrolled undergraduate students.</p>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-teal" onclick="openModal('addStudentModal')">
+      <i class="bi bi-person-plus-fill"></i> Add Student Record
+    </button>
+    <a href="{{ url_for('export_csv') }}" class="btn btn-outline">
+      <i class="bi bi-file-earmark-spreadsheet"></i> Export CSV
+    </a>
+  </div>
+</div>
+
+<!-- Search, Filter & Sort Controls Card -->
+<div class="card" style="padding: 18px 24px;">
+  <form method="GET" action="{{ url_for('student_management') }}" style="display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end;">
+    <!-- Search Query -->
+    <div style="flex: 2; min-width: 220px;">
+      <label class="form-label" style="font-size: 0.78rem;">Search by Name or Student ID</label>
+      <div class="input-icon-wrapper">
+        <i class="bi bi-search"></i>
+        <input type="text" name="search" class="form-control" placeholder="e.g. Aarav, STU1002..." value="{{ search_query }}">
+      </div>
+    </div>
+
+    <!-- Category Filter -->
+    <div style="flex: 1; min-width: 170px;">
+      <label class="form-label" style="font-size: 0.78rem;">Predicted Category</label>
+      <select name="category" class="form-control">
+        <option value="">All Categories</option>
+        <option value="High Performer" {% if selected_cat == 'High Performer' %}selected{% endif %}>High Performer</option>
+        <option value="Average Performer" {% if selected_cat == 'Average Performer' %}selected{% endif %}>Average Performer</option>
+        <option value="At-Risk Student" {% if selected_cat == 'At-Risk Student' %}selected{% endif %}>At-Risk Student</option>
+      </select>
+    </div>
+
+    <!-- Risk Level Filter -->
+    <div style="flex: 1; min-width: 150px;">
+      <label class="form-label" style="font-size: 0.78rem;">Academic Risk</label>
+      <select name="risk" class="form-control">
+        <option value="">All Risks</option>
+        <option value="High" {% if selected_risk == 'High' %}selected{% endif %}>High Risk</option>
+        <option value="Medium" {% if selected_risk == 'Medium' %}selected{% endif %}>Medium Risk</option>
+        <option value="Low" {% if selected_risk == 'Low' %}selected{% endif %}>Low Risk</option>
+      </select>
+    </div>
+
+    <!-- Sort By -->
+    <div style="flex: 1; min-width: 160px;">
+      <label class="form-label" style="font-size: 0.78rem;">Sort By</label>
+      <select name="sort" class="form-control">
+        <option value="name" {% if selected_sort == 'name' %}selected{% endif %}>Student Name</option>
+        <option value="academic_score" {% if selected_sort == 'academic_score' %}selected{% endif %}>Internal Marks (High to Low)</option>
+        <option value="attendance" {% if selected_sort == 'attendance' %}selected{% endif %}>Attendance % (High to Low)</option>
+        <option value="risk" {% if selected_sort == 'risk' %}selected{% endif %}>Risk Level (Critical First)</option>
+      </select>
+    </div>
+
+    <!-- Submit & Reset Buttons -->
+    <div>
+      <button type="submit" class="btn btn-primary">
+        <i class="bi bi-funnel"></i> Filter
+      </button>
+      <a href="{{ url_for('student_management') }}" class="btn btn-outline" title="Clear filters">
+        Reset
+      </a>
+    </div>
+  </form>
+</div>
+
+<!-- Students Records Table -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div class="table-container">
+    <table class="table filterable-table">
+      <thead>
+        <tr>
+          <th>Student Details</th>
+          <th>Department</th>
+          <th>Attendance</th>
+          <th>Internal Marks</th>
+          <th>Assignment %</th>
+          <th>Prev Sem</th>
+          <th>Predicted Category</th>
+          <th>Risk</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for student in students %}
+        <tr>
+          <td>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <img src="{{ student.avatar }}" alt="{{ student.name }}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color);">
+              <div>
+                <a href="{{ url_for('student_profile', student_id=student.id) }}" style="font-weight: 600; color: var(--color-primary); text-decoration: underline-offset: 2px;">
+                  {{ student.name }}
+                </a>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">{{ student.id }} • Sem {{ student.semester }}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span style="font-size: 0.8rem; font-weight: 500; color: var(--text-muted);">CSE</span>
+          </td>
+          <td>
+            <div style="font-weight: 600; font-size: 0.9rem; color: {% if student.attendance < 65 %}var(--color-danger){% elif student.attendance < 75 %}var(--color-warning){% else %}var(--color-primary){% endif %};">
+              {{ student.attendance }}%
+            </div>
+            <div class="progress-bar-wrap" style="width: 75px; margin-top: 4px;">
+              <div class="progress-bar-fill {% if student.attendance < 65 %}progress-danger{% elif student.attendance < 75 %}progress-warning{% else %}progress-teal{% endif %}" style="width: {{ student.attendance }}%;"></div>
+            </div>
+          </td>
+          <td>
+            <div style="font-weight: 700; font-size: 0.92rem; color: {% if student.internal_marks < 50 %}var(--color-danger){% elif student.internal_marks >= 80 %}var(--color-success){% else %}var(--text-main){% endif %};">
+              {{ student.internal_marks }}/100
+            </div>
+          </td>
+          <td>
+            <span style="font-weight: 600;">{{ student.assignment_completion }}%</span>
+          </td>
+          <td>
+            <span style="color: var(--text-muted); font-weight: 500;">{{ student.previous_semester_score }}%</span>
+          </td>
+          <td>
+            <span class="badge {% if student.predicted_category == 'High Performer' %}badge-high{% elif student.predicted_category == 'Average Performer' %}badge-average{% else %}badge-risk{% endif %}">
+              {{ student.predicted_category }}
+            </span>
+          </td>
+          <td>
+            <span class="badge {% if student.risk_level == 'High' %}badge-risk-high{% elif student.risk_level == 'Medium' %}badge-risk-med{% else %}badge-risk-low{% endif %}">
+              {{ student.risk_level }}
+            </span>
+          </td>
+          <td>
+            <div style="display: flex; gap: 6px;">
+              <a href="{{ url_for('student_profile', student_id=student.id) }}" class="btn btn-outline btn-sm" title="View Full Profile">
+                <i class="bi bi-eye"></i> View
+              </a>
+              <form method="POST" action="{{ url_for('api_delete_student', student_id=student.id) }}" onsubmit="return confirm('Remove student record for {{ student.name }}?');" style="display: inline;">
+                <button type="submit" class="btn btn-outline btn-sm" style="color: var(--color-danger);" title="Delete Record">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9" style="text-align: center; padding: 40px; color: var(--text-muted);">
+            <i class="bi bi-folder-x" style="font-size: 2.2rem; display: block; margin-bottom: 10px; color: var(--text-dim);"></i>
+            No student records matching the filter criteria found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal: Add Student Record -->
+<div class="modal-backdrop" id="addStudentModal">
+  <div class="modal-content">
+    <button class="modal-close-btn" onclick="closeModal('addStudentModal')">&times;</button>
+    <div style="margin-bottom: 20px;">
+      <h3 style="color: var(--color-primary); font-size: 1.3rem; font-weight: 700;">Add New Student</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">Enter student academic parameters to initialize ML tracking and risk profiling.</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('api_add_student') }}">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input type="text" name="name" class="form-control" required placeholder="e.g. Rahul Sharma">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" name="email" class="form-control" required placeholder="student@college.edu">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Department</label>
+          <select name="department" class="form-control">
+            <option value="Computer Science & Engineering">Computer Science & Engineering</option>
+            <option value="Information Technology">Information Technology</option>
+            <option value="Electronics & Communication">Electronics & Communication</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Semester</label>
+          <input type="number" name="semester" class="form-control" value="7" min="1" max="8">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Current Attendance (%)</label>
+          <input type="number" name="attendance" step="0.1" class="form-control" value="78.0" min="0" max="100" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Internal Marks (out of 100)</label>
+          <input type="number" name="internal_marks" step="0.1" class="form-control" value="72.0" min="0" max="100" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Assignment Completion (%)</label>
+          <input type="number" name="assignment_completion" step="0.1" class="form-control" value="80.0" min="0" max="100" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Previous Semester Score (%)</label>
+          <input type="number" name="previous_semester_score" step="0.1" class="form-control" value="74.0" min="0" max="100" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Daily Study Hours</label>
+          <input type="number" name="study_hours" step="0.1" class="form-control" value="4.0" min="0" max="16" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Classroom Participation (1-10)</label>
+          <input type="number" name="participation" step="0.1" class="form-control" value="7.0" min="1" max="10" required>
+        </div>
+      </div>
+
+      <div style="margin-top: 24px; display: flex; justify-content: flex-end; gap: 12px;">
+        <button type="button" class="btn btn-outline" onclick="closeModal('addStudentModal')">Cancel</button>
+        <button type="submit" class="btn btn-teal">
+          <i class="bi bi-save"></i> Save Student Record
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

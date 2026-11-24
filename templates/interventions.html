@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Faculty Intervention Management - EduPredict{% endblock %}
+{% block breadcrumb %}Counseling & Faculty Mentoring Interventions{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Faculty Intervention Management</h1>
+    <p class="page-subtitle">Track academic counseling sessions, assigned remedial improvement tasks, follow-up deadlines, and student turnaround progress.</p>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-teal" onclick="openModal('addInterventionModal')">
+      <i class="bi bi-person-heart"></i> Record Mentoring Session
+    </button>
+  </div>
+</div>
+
+<!-- Intervention Metrics -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon warning">
+      <i class="bi bi-hourglass-split"></i>
+    </div>
+    <div>
+      <div class="stat-value" style="color: #b45309;">{{ awaiting_count }}</div>
+      <div class="stat-label">Awaiting Follow-up</div>
+      <div class="stat-trend trend-down">
+        Scheduled for reviews this fortnight
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon primary">
+      <i class="bi bi-arrow-repeat"></i>
+    </div>
+    <div>
+      <div class="stat-value">{{ in_progress_count }}</div>
+      <div class="stat-label">Remedial Plans In Progress</div>
+      <div class="stat-trend trend-up">
+        Under weekly student monitor
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon success">
+      <i class="bi bi-check2-circle"></i>
+    </div>
+    <div>
+      <div class="stat-value" style="color: var(--color-success);">{{ resolved_count }}</div>
+      <div class="stat-label">Resolved & Recovered</div>
+      <div class="stat-trend trend-up">
+        Clearance of attendance & backlogs
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Interventions List -->
+<div class="card" style="padding: 0; overflow: hidden;">
+  <div class="table-container">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Student & Faculty Mentor</th>
+          <th>Session Date</th>
+          <th>Mentoring Notes & Root Cause</th>
+          <th>Action Items Assigned</th>
+          <th>Follow-Up Due</th>
+          <th>Status</th>
+          <th>Update</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in interventions %}
+        <tr>
+          <td>
+            <div style="font-weight: 700; color: var(--color-primary);">{{ item.student_name }}</div>
+            <div style="font-size: 0.74rem; color: var(--text-muted);">{{ item.id }} • {{ item.student_id }}</div>
+            <div style="font-size: 0.78rem; color: var(--color-teal); margin-top: 2px;">{{ item.faculty_name }}</div>
+          </td>
+          <td>
+            <span style="font-size: 0.85rem; font-weight: 500;">{{ item.session_date }}</span>
+          </td>
+          <td style="max-width: 280px;">
+            <p style="font-size: 0.82rem; margin: 0; line-height: 1.4;">{{ item.notes }}</p>
+          </td>
+          <td style="max-width: 220px;">
+            <span style="font-size: 0.82rem; color: #1e293b; background: var(--bg-surface-alt); padding: 4px 8px; border-radius: 4px; display: inline-block;">
+              {{ item.action_items }}
+            </span>
+          </td>
+          <td>
+            <span style="font-weight: 600; font-size: 0.85rem; color: var(--color-danger);">
+              {{ item.follow_up_date }}
+            </span>
+          </td>
+          <td>
+            <span class="badge {% if item.status == 'Resolved' %}badge-high{% elif item.status == 'In Progress' %}badge-average{% else %}badge-risk-high{% endif %}">
+              {{ item.status }}
+            </span>
+          </td>
+          <td>
+            <form method="POST" action="{{ url_for('api_update_intervention_status', int_id=item.id) }}">
+              <select name="status" class="form-control" style="font-size: 0.75rem; padding: 4px 6px;" onchange="this.form.submit()">
+                <option value="Awaiting Follow-up" {% if item.status == 'Awaiting Follow-up' %}selected{% endif %}>Awaiting Follow-up</option>
+                <option value="In Progress" {% if item.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                <option value="Resolved" {% if item.status == 'Resolved' %}selected{% endif %}>Resolved</option>
+              </select>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal: Add Mentoring Session -->
+<div class="modal-backdrop" id="addInterventionModal">
+  <div class="modal-content">
+    <button class="modal-close-btn" onclick="closeModal('addInterventionModal')">&times;</button>
+    <h3 style="color: var(--color-primary); margin-bottom: 6px; font-weight: 700;">Record Faculty Mentoring Session</h3>
+    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Log counseling dialogue, agreed actions, and next follow-up milestone.</p>
+
+    <form method="POST" action="{{ url_for('api_add_intervention') }}">
+      <div class="form-group">
+        <label class="form-label">At-Risk Student</label>
+        <select name="student_id" class="form-control" required>
+          {% for s in students %}
+          <option value="{{ s.id }}">{{ s.name }} ({{ s.id }} - {{ s.risk_level }} Risk)</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Faculty Counselor / Mentor Name</label>
+        <input type="text" name="faculty_name" class="form-control" value="Dr. Ananya Roy" required>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+        <div class="form-group">
+          <label class="form-label">Session Date</label>
+          <input type="date" name="session_date" class="form-control" value="2026-10-11" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Follow-up Date</label>
+          <input type="date" name="follow_up_date" class="form-control" value="2026-10-25" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Discussion Notes & Issues Identified</label>
+        <textarea name="notes" class="form-control" rows="3" required placeholder="Detail academic distress factors, personal hurdles, or course difficulties..."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Assigned Improvement Tasks / Action Items</label>
+        <textarea name="action_items" class="form-control" rows="2" required placeholder="Remedial assignments, peer tutoring hours, daily attendance target..."></textarea>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 18px;">
+        <button type="button" class="btn btn-outline" onclick="closeModal('addInterventionModal')">Cancel</button>
+        <button type="submit" class="btn btn-teal">Save Intervention Record</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
